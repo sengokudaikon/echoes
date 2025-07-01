@@ -1,21 +1,21 @@
 [package]
-name = "whispo-rust"
+name = "whispers"
 version = "0.1.0"
-edition = "2021"
-authors = ["Whispo Rust Contributors"]
+edition = "2024"
+authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
 description = "A fast, native dictation application written in Rust"
 license = "MIT"
 
 [dependencies]
 # Keyboard and automation
 rdev = { git = "https://github.com/fufesou/rdev" }
-enigo = "0.3"
+enigo = "0.5.0"
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 
 # Audio
-cpal = "0.15"
+cpal = "0.16.0"
 hound = "3.5"
 
 # HTTP and API clients
@@ -27,16 +27,17 @@ serde_json = "1"
 toml = "0.8"
 
 # System integration
-tray-icon = "0.11"
-directories = "5"
+tray-icon = "0.21.0"
+directories = "6.0.0"
 
 # Error handling and utilities
 anyhow = "1"
-thiserror = "1"
+thiserror = "2.0.12"
 
 # Logging
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "tracing-log"] }
+tracing-appender = "0.2"
 
 # CLI
 clap = { version = "4", features = ["derive"] }
@@ -45,16 +46,16 @@ clap = { version = "4", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # UI Framework
-eframe = "0.24"  # Includes egui + native windowing
-egui = "0.24"
+eframe = "0.31.1"  # Includes egui + native windowing
+egui = "0.31.1"
 
 # Platform-specific dependencies
 [target.'cfg(target_os = "macos")'.dependencies]
 mac-notification-sys = "0.6"
-core-foundation = "0.9"
+core-foundation = "0.10.1"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.52", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
+windows = { version = "0.61.3", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 notify-rust = "4"

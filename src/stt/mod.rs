@@ -1,4 +1,6 @@
 // STT module stub for now
+#![allow(dead_code)]
+
 use anyhow::Result;
 
 pub trait SttProvider {
@@ -10,8 +12,10 @@ pub struct OpenAiStt {
 }
 
 impl OpenAiStt {
-    pub fn new(api_key: String) -> Self {
-        Self { api_key }
+    pub fn new(api_key: impl Into<String>) -> Self {
+        Self {
+            api_key: api_key.into(),
+        }
     }
 }
 

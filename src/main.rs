@@ -1,22 +1,30 @@
 use eframe::egui;
-use anyhow::Result;
 
-mod config;
-mod keyboard;
 mod audio;
-mod stt;
-mod ui;
+mod config;
+mod error;
+mod keyboard;
 mod logging;
 mod permissions;
+mod stt;
+mod tracing_setup;
+mod ui;
 
 use config::Config;
+use error::{Result, UiError, WhispersError};
+use tracing_setup::{TracingConfig, init_tracing, setup_panic_handler};
 
 fn main() -> Result<()> {
-    // Initialize logging
-    logging::init_logging()?;
-    
+    // Set up panic handler
+    setup_panic_handler();
+
+    // Initialize tracing with default config
+    let tracing_config = TracingConfig::default();
+    init_tracing(tracing_config)?;
+
     // Load configuration
-    let config = Config::load()?;
+    let config =
+        Config::load().map_err(|e| WhispersError::Other(format!("Failed to load config: {e}")))?;
 
     // Set up native options for the window
     let native_options = eframe::NativeOptions {
@@ -31,7 +39,7 @@ fn main() -> Result<()> {
     eframe::run_native(
         "Whispo",
         native_options,
-        Box::new(|cc| Box::new(ui::WhispoApp::new(cc, config))),
+        Box::new(|cc| Ok(Box::new(ui::WhispoApp::new(cc, config)))),
     )
-    .map_err(|e| anyhow::anyhow!("Failed to run native app: {}", e))
+    .map_err(|e| UiError::InitializationFailed(e.to_string()).into())
 }

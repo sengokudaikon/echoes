@@ -1,0 +1,206 @@
+use crate::config::{Config, RecordingShortcut, ShortcutMode};
+use crate::keyboard::KeyboardEvent;
+
+use super::{
+    config_manager::ConfigManager, keyboard_manager::KeyboardManager,
+    session_manager::SessionManager, shortcut_manager::ShortcutManager, shortcuts,
+    system_manager::SystemManager,
+};
+
+/// Core application state using composition pattern
+pub struct AppState {
+    pub config: Config,
+    pub config_manager: ConfigManager,
+    pub keyboard_manager: KeyboardManager,
+    pub session_manager: SessionManager,
+    pub shortcut_manager: ShortcutManager,
+    #[allow(dead_code)]
+    pub system_manager: SystemManager,
+}
+
+impl AppState {
+    pub fn new(config: Config) -> Self {
+        let mut state = Self {
+            config,
+            config_manager: ConfigManager::new(),
+            keyboard_manager: KeyboardManager::new(),
+            session_manager: SessionManager::new(),
+            shortcut_manager: ShortcutManager::new(),
+            system_manager: SystemManager::new(),
+        };
+
+        // Initialize keyboard listener
+        state.init_keyboard_listener();
+        state
+    }
+
+    pub fn init_keyboard_listener(&mut self) {
+        match self
+            .keyboard_manager
+            .init(self.config.recording_shortcut.clone())
+        {
+            Ok(()) => {
+                self.session_manager.add_log("Keyboard listener started");
+                self.session_manager.set_error(None);
+            }
+            Err(e) => {
+                self.session_manager
+                    .add_log(format!("Keyboard init failed: {e}"));
+                self.session_manager.set_error(Some(e));
+            }
+        }
+    }
+
+    pub fn open_accessibility_settings(&mut self) {
+        match SystemManager::open_accessibility_settings() {
+            Ok(()) => self.session_manager.add_log("Opened System Settings"),
+            Err(e) => self
+                .session_manager
+                .add_log(format!("System settings error: {e}")),
+        }
+    }
+
+    pub fn handle_keyboard_events(&mut self) -> bool {
+        let events = self.keyboard_manager.try_recv_event();
+        let mut needs_repaint = false;
+
+        for event in events {
+            needs_repaint = true;
+            match event {
+                KeyboardEvent::RecordingKeyPressed => {
+                    if !self.session_manager.recording {
+                        self.session_manager.start_recording();
+                        let shortcut_str =
+                            shortcuts::format_shortcut(&self.config.recording_shortcut);
+                        let msg = match self.config.recording_shortcut.mode {
+                            ShortcutMode::Hold => {
+                                format!("{shortcut_str} pressed - Recording started")
+                            }
+                            ShortcutMode::Toggle => {
+                                format!("{shortcut_str} pressed - Recording started")
+                            }
+                        };
+                        self.session_manager.add_log(msg);
+                    }
+                }
+                KeyboardEvent::RecordingKeyReleased => {
+                    if self.session_manager.recording {
+                        self.session_manager.stop_recording();
+                        let shortcut_str =
+                            shortcuts::format_shortcut(&self.config.recording_shortcut);
+                        let msg = match self.config.recording_shortcut.mode {
+                            ShortcutMode::Hold => {
+                                format!("{shortcut_str} released - Recording stopped")
+                            }
+                            ShortcutMode::Toggle => {
+                                format!("{shortcut_str} pressed - Recording stopped")
+                            }
+                        };
+                        self.session_manager.add_log(msg);
+                    }
+                }
+                KeyboardEvent::OtherKeyPressed => {
+                    if self.session_manager.recording {
+                        self.session_manager.stop_recording();
+                        self.session_manager.add_log("Recording cancelled");
+                    }
+                }
+                KeyboardEvent::ListenerError(msg) => {
+                    self.session_manager.set_error(Some(msg.clone()));
+                    self.session_manager
+                        .add_log(format!("Keyboard listener error: {msg}"));
+                    self.keyboard_manager.clear_receiver();
+                }
+                KeyboardEvent::ShortcutRecorded(shortcut) => {
+                    self.shortcut_manager.record_shortcut(shortcut.clone());
+                    self.session_manager.stop_shortcut_recording();
+                    let shortcut_str = shortcuts::format_shortcut(&shortcut);
+                    self.session_manager
+                        .add_log(format!("New shortcut recorded: {shortcut_str}"));
+                }
+                KeyboardEvent::RecordingCancelled => {
+                    self.session_manager.stop_shortcut_recording();
+                    self.shortcut_manager.clear_recorded();
+                    self.session_manager.add_log("Shortcut recording cancelled");
+                }
+            }
+        }
+
+        needs_repaint
+    }
+
+    pub fn apply_shortcut(&mut self, shortcut: RecordingShortcut) {
+        let shortcut_str = shortcuts::format_shortcut(&shortcut);
+        self.config.recording_shortcut = shortcut;
+        self.session_manager
+            .add_log(format!("Changed shortcut to {shortcut_str}"));
+        self.config_manager.save_async(self.config.clone());
+        self.keyboard_manager
+            .update_shortcut(self.config.recording_shortcut.clone());
+    }
+
+    pub fn update_shortcut_listener(&self) {
+        self.keyboard_manager
+            .update_shortcut(self.config.recording_shortcut.clone());
+    }
+
+    pub fn start_recording_shortcut(&mut self) {
+        self.session_manager.start_shortcut_recording();
+        self.shortcut_manager.clear_recorded();
+        self.session_manager
+            .add_log("Started shortcut recording mode");
+
+        self.keyboard_manager.start_recording_shortcut();
+        if self.keyboard_manager.listener.is_some() {
+            self.session_manager
+                .add_log("Called start_recording_shortcut on listener");
+        } else {
+            self.session_manager
+                .add_log("ERROR: No keyboard listener available!");
+        }
+    }
+
+    pub fn stop_recording_shortcut(&mut self) {
+        self.session_manager.stop_shortcut_recording();
+        self.shortcut_manager.clear_recorded();
+        self.session_manager.add_log("Shortcut recording cancelled");
+        self.keyboard_manager.stop_recording_shortcut();
+    }
+
+    // Convenience accessors
+    pub fn recording(&self) -> bool {
+        self.session_manager.recording
+    }
+
+    pub fn recording_shortcut(&self) -> bool {
+        self.session_manager.recording_shortcut
+    }
+
+    pub fn logs(&self) -> &[String] {
+        &self.session_manager.logs
+    }
+
+    pub fn error_message(&self) -> &Option<String> {
+        &self.session_manager.error_message
+    }
+
+    pub fn permissions_granted(&self) -> bool {
+        self.keyboard_manager.permissions_granted
+    }
+
+    pub fn add_log(&mut self, msg: impl Into<String>) {
+        self.session_manager.add_log(msg);
+    }
+
+    pub fn recorded_shortcut(&mut self) -> Option<RecordingShortcut> {
+        self.shortcut_manager.take_recorded()
+    }
+
+    pub fn show_visual_editor(&self) -> bool {
+        self.shortcut_manager.show_visual_editor
+    }
+
+    pub fn set_show_visual_editor(&mut self, show: bool) {
+        self.shortcut_manager.set_visual_editor(show);
+    }
+}

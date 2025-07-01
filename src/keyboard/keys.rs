@@ -1,5 +1,7 @@
-use rdev::Key;
+#![allow(dead_code)]
+
 use crate::config::KeyCode;
+use rdev::Key;
 
 pub fn keycode_to_rdev_key(keycode: KeyCode) -> Key {
     match keycode {
@@ -12,7 +14,7 @@ pub fn keycode_to_rdev_key(keycode: KeyCode) -> Key {
         KeyCode::AltGr => Key::AltGr,
         KeyCode::MetaLeft => Key::MetaLeft,
         KeyCode::MetaRight => Key::MetaRight,
-        
+
         // Special keys
         KeyCode::Space => Key::Space,
         KeyCode::Tab => Key::Tab,
@@ -26,13 +28,13 @@ pub fn keycode_to_rdev_key(keycode: KeyCode) -> Key {
         KeyCode::PageUp => Key::PageUp,
         KeyCode::PageDown => Key::PageDown,
         KeyCode::CapsLock => Key::CapsLock,
-        
+
         // Arrow keys
         KeyCode::UpArrow => Key::UpArrow,
         KeyCode::DownArrow => Key::DownArrow,
         KeyCode::LeftArrow => Key::LeftArrow,
         KeyCode::RightArrow => Key::RightArrow,
-        
+
         // Function keys
         KeyCode::F1 => Key::F1,
         KeyCode::F2 => Key::F2,
@@ -46,7 +48,7 @@ pub fn keycode_to_rdev_key(keycode: KeyCode) -> Key {
         KeyCode::F10 => Key::F10,
         KeyCode::F11 => Key::F11,
         KeyCode::F12 => Key::F12,
-        
+
         // Letters
         KeyCode::A => Key::KeyA,
         KeyCode::B => Key::KeyB,
@@ -74,7 +76,7 @@ pub fn keycode_to_rdev_key(keycode: KeyCode) -> Key {
         KeyCode::X => Key::KeyX,
         KeyCode::Y => Key::KeyY,
         KeyCode::Z => Key::KeyZ,
-        
+
         // Numbers
         KeyCode::Num0 => Key::Num0,
         KeyCode::Num1 => Key::Num1,
@@ -86,7 +88,7 @@ pub fn keycode_to_rdev_key(keycode: KeyCode) -> Key {
         KeyCode::Num7 => Key::Num7,
         KeyCode::Num8 => Key::Num8,
         KeyCode::Num9 => Key::Num9,
-        
+
         // Symbols
         KeyCode::Slash => Key::Slash,
         KeyCode::BackSlash => Key::BackSlash,
@@ -113,7 +115,7 @@ pub fn rdev_key_to_keycode(key: Key) -> Option<KeyCode> {
         Key::AltGr => Some(KeyCode::AltGr),
         Key::MetaLeft => Some(KeyCode::MetaLeft),
         Key::MetaRight => Some(KeyCode::MetaRight),
-        
+
         // Special keys
         Key::Space => Some(KeyCode::Space),
         Key::Tab => Some(KeyCode::Tab),
@@ -127,13 +129,13 @@ pub fn rdev_key_to_keycode(key: Key) -> Option<KeyCode> {
         Key::PageUp => Some(KeyCode::PageUp),
         Key::PageDown => Some(KeyCode::PageDown),
         Key::CapsLock => Some(KeyCode::CapsLock),
-        
+
         // Arrow keys
         Key::UpArrow => Some(KeyCode::UpArrow),
         Key::DownArrow => Some(KeyCode::DownArrow),
         Key::LeftArrow => Some(KeyCode::LeftArrow),
         Key::RightArrow => Some(KeyCode::RightArrow),
-        
+
         // Function keys
         Key::F1 => Some(KeyCode::F1),
         Key::F2 => Some(KeyCode::F2),
@@ -147,7 +149,7 @@ pub fn rdev_key_to_keycode(key: Key) -> Option<KeyCode> {
         Key::F10 => Some(KeyCode::F10),
         Key::F11 => Some(KeyCode::F11),
         Key::F12 => Some(KeyCode::F12),
-        
+
         // Letters
         Key::KeyA => Some(KeyCode::A),
         Key::KeyB => Some(KeyCode::B),
@@ -175,7 +177,7 @@ pub fn rdev_key_to_keycode(key: Key) -> Option<KeyCode> {
         Key::KeyX => Some(KeyCode::X),
         Key::KeyY => Some(KeyCode::Y),
         Key::KeyZ => Some(KeyCode::Z),
-        
+
         // Numbers
         Key::Num0 => Some(KeyCode::Num0),
         Key::Num1 => Some(KeyCode::Num1),
@@ -187,7 +189,7 @@ pub fn rdev_key_to_keycode(key: Key) -> Option<KeyCode> {
         Key::Num7 => Some(KeyCode::Num7),
         Key::Num8 => Some(KeyCode::Num8),
         Key::Num9 => Some(KeyCode::Num9),
-        
+
         // Symbols
         Key::Slash => Some(KeyCode::Slash),
         Key::BackSlash => Some(KeyCode::BackSlash),
@@ -200,7 +202,7 @@ pub fn rdev_key_to_keycode(key: Key) -> Option<KeyCode> {
         Key::LeftBracket => Some(KeyCode::LeftBracket),
         Key::RightBracket => Some(KeyCode::RightBracket),
         Key::BackQuote => Some(KeyCode::BackQuote),
-        
+
         _ => None, // Unknown keys
     }
 }
@@ -216,7 +218,7 @@ pub fn key_from_string(s: &str) -> Option<Key> {
         "AltGr" => Some(Key::AltGr),
         "MetaLeft" | "Cmd" | "Command" | "Super" => Some(Key::MetaLeft),
         "MetaRight" => Some(Key::MetaRight),
-        
+
         // Special keys
         "Space" => Some(Key::Space),
         "Tab" => Some(Key::Tab),
@@ -230,13 +232,13 @@ pub fn key_from_string(s: &str) -> Option<Key> {
         "PageUp" => Some(Key::PageUp),
         "PageDown" => Some(Key::PageDown),
         "CapsLock" => Some(Key::CapsLock),
-        
+
         // Arrow keys
         "ArrowUp" | "Up" => Some(Key::UpArrow),
         "ArrowDown" | "Down" => Some(Key::DownArrow),
         "ArrowLeft" | "Left" => Some(Key::LeftArrow),
         "ArrowRight" | "Right" => Some(Key::RightArrow),
-        
+
         // Function keys
         "F1" => Some(Key::F1),
         "F2" => Some(Key::F2),
@@ -250,7 +252,7 @@ pub fn key_from_string(s: &str) -> Option<Key> {
         "F10" => Some(Key::F10),
         "F11" => Some(Key::F11),
         "F12" => Some(Key::F12),
-        
+
         // Letters
         "A" | "a" => Some(Key::KeyA),
         "B" | "b" => Some(Key::KeyB),
@@ -278,7 +280,7 @@ pub fn key_from_string(s: &str) -> Option<Key> {
         "X" | "x" => Some(Key::KeyX),
         "Y" | "y" => Some(Key::KeyY),
         "Z" | "z" => Some(Key::KeyZ),
-        
+
         // Numbers
         "0" => Some(Key::Num0),
         "1" => Some(Key::Num1),
@@ -290,7 +292,7 @@ pub fn key_from_string(s: &str) -> Option<Key> {
         "7" => Some(Key::Num7),
         "8" => Some(Key::Num8),
         "9" => Some(Key::Num9),
-        
+
         // Symbols
         "/" | "Slash" => Some(Key::Slash),
         "\\" | "Backslash" => Some(Key::BackSlash),
@@ -303,7 +305,7 @@ pub fn key_from_string(s: &str) -> Option<Key> {
         "[" | "LeftBracket" => Some(Key::LeftBracket),
         "]" | "RightBracket" => Some(Key::RightBracket),
         "`" | "Grave" | "BackQuote" => Some(Key::BackQuote),
-        
+
         _ => None,
     }
 }
@@ -394,5 +396,6 @@ pub fn key_to_string(key: &Key) -> String {
         Key::RightBracket => "]",
         Key::BackQuote => "`",
         _ => "Unknown",
-    }.to_string()
+    }
+    .to_string()
 }
