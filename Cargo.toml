@@ -1,40 +1,17 @@
-[package]
-name = "echoes"
-version = "0.1.0"
-edition = "2024"
-authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
-description = "A fast, native dictation application written in Rust"
-license = "MIT"
+[workspace]
+resolver = "2"
+members = [
+    "crates/echoes-config",
+]
 
-[dependencies]
-# Keyboard and automation
-rdev = { git = "https://github.com/fufesou/rdev" }
-enigo = "0.5.0"
-
+[workspace.dependencies]
 # Async runtime
 tokio = { version = "1", features = ["full"] }
-
-# Audio
-cpal = "0.16.0"
-hound = "3.5"  # Still need for WAV encoding
-voice_activity_detector = "0.2.0"
-rubato = "0.15"  # For resampling audio
-ort-sys = { version = "=2.0.0-rc.9" }
-ort = { version = "=2.0.0-rc.9" }
-# Speech Recognition
-whisper-rs = "0.14"
-
-# HTTP and API clients
-reqwest = { version = "0.12", features = ["json", "multipart", "stream"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
-
-# System integration
-tray-icon = "0.21.0"
-directories = "6.0.0"
 
 # Error handling and utilities
 anyhow = "1"
@@ -45,23 +22,48 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "tracing-log"] }
 tracing-appender = "0.2"
 
-# CLI
-clap = { version = "4", features = ["derive"] }
-
 # Time
 chrono = { version = "0.4", features = ["serde"] }
 
-# UI Framework
-eframe = "0.31.1"  # Includes egui + native windowing
+# System integration
+directories = "6.0.0"
+
+# HTTP and API clients
+reqwest = { version = "0.12", features = ["json", "multipart", "stream"] }
+
+# Audio (for core crate)
+cpal = "0.16.0"
+hound = "3.5"
+voice_activity_detector = "0.2.0"
+rubato = "0.15"
+ort-sys = { version = "=2.0.0-rc.9" }
+ort = { version = "=2.0.0-rc.9" }
+whisper-rs = "0.14"
+
+# Keyboard and automation (for core crate)
+rdev = { git = "https://github.com/fufesou/rdev" }
+enigo = "0.5.0"
+
+# UI Framework (for ui crate)
+eframe = "0.31.1"
 egui = "0.31.1"
 
+# System tray (for ui crate)
+tray-icon = "0.21.0"
+
+# CLI (for main binary)
+clap = { version = "4", features = ["derive"] }
+
 # Platform-specific dependencies
-[target.'cfg(target_os = "macos")'.dependencies]
-mac-notification-sys = "0.6"
-core-foundation = "0.10.1"
+[workspace.dependencies.mac-notification-sys]
+version = "0.6"
 
-[target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.61.3", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
+[workspace.dependencies.core-foundation]
+version = "0.10.1"
 
-[target.'cfg(target_os = "linux")'.dependencies]
-notify-rust = "4"
+[workspace.dependencies.windows]
+version = "0.61.3"
+features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"]
+
+[workspace.dependencies.notify-rust]
+version = "4"
