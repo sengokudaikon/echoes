@@ -1,8 +1,10 @@
+use std::path::PathBuf;
+
+use anyhow::{Context, Result};
+use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
+
 use super::SttProvider;
 use crate::config::{LocalWhisperConfig, WhisperModel};
-use anyhow::{Context, Result};
-use std::path::PathBuf;
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 pub struct LocalWhisperStt {
     context: WhisperContext,
@@ -12,7 +14,8 @@ impl LocalWhisperStt {
     pub fn new(config: &LocalWhisperConfig) -> Result<Self> {
         let model_path = if let Some(path) = &config.model_path {
             path.clone()
-        } else {
+        }
+        else {
             Self::get_model_path(config)?
         };
 
@@ -29,10 +32,10 @@ impl LocalWhisperStt {
             .context("Failed to get project directories")?
             .data_dir()
             .to_path_buf();
-        
+
         path.push("models");
         std::fs::create_dir_all(&path)?;
-        
+
         let model_filename = match config.model {
             WhisperModel::Tiny => "ggml-tiny.bin",
             WhisperModel::TinyEn => "ggml-tiny.en.bin",
@@ -46,16 +49,16 @@ impl LocalWhisperStt {
             WhisperModel::LargeV2 => "ggml-large-v2.bin",
             WhisperModel::LargeV3 => "ggml-large-v3.bin",
         };
-        
+
         path.push(model_filename);
-        
+
         if !path.exists() {
             anyhow::bail!(
                 "Whisper model not found at {:?}. Please download the model from https://huggingface.co/ggerganov/whisper.cpp/tree/main",
                 path
             );
         }
-        
+
         Ok(path)
     }
 }
@@ -64,11 +67,10 @@ impl SttProvider for LocalWhisperStt {
     fn transcribe(&self, audio_data: Vec<u8>) -> Result<String> {
         // whisper-rs expects 16-bit PCM mono audio at 16kHz
         // The audio_data should already be in WAV format from our recording module
-        
+
         // Parse WAV to get raw PCM data
-        let mut reader = hound::WavReader::new(std::io::Cursor::new(audio_data))
-            .context("Failed to parse WAV data")?;
-        
+        let mut reader = hound::WavReader::new(std::io::Cursor::new(audio_data)).context("Failed to parse WAV data")?;
+
         let spec = reader.spec();
         if spec.channels != 1 {
             anyhow::bail!("Audio must be mono, got {} channels", spec.channels);
@@ -76,17 +78,17 @@ impl SttProvider for LocalWhisperStt {
         if spec.sample_rate != 16000 {
             anyhow::bail!("Audio must be 16kHz, got {}Hz", spec.sample_rate);
         }
-        
+
         // Convert to f32 samples as expected by whisper-rs
         let samples: Vec<f32> = reader
             .samples::<i16>()
             .map(|s| s.map(|sample| sample as f32 / i16::MAX as f32))
             .collect::<Result<Vec<_>, _>>()
             .context("Failed to read audio samples")?;
-        
+
         // Create parameters for this transcription
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-        
+
         // Configure parameters for better accuracy
         params.set_language(Some("en"));
         params.set_translate(false);
@@ -98,24 +100,20 @@ impl SttProvider for LocalWhisperStt {
         params.set_print_timestamps(false);
 
         // Run inference
-        let mut state = self.context.create_state()
-            .context("Failed to create Whisper state")?;
-        
-        state.full(params, &samples)
-            .context("Whisper inference failed")?;
-        
+        let mut state = self.context.create_state().context("Failed to create Whisper state")?;
+
+        state.full(params, &samples).context("Whisper inference failed")?;
+
         // Get the transcribed text
-        let segment_count = state.full_n_segments()
-            .context("Failed to get segment count")?;
-        
+        let segment_count = state.full_n_segments().context("Failed to get segment count")?;
+
         let mut transcript = String::new();
         for i in 0..segment_count {
-            let text = state.full_get_segment_text(i)
-                .context("Failed to get segment text")?;
+            let text = state.full_get_segment_text(i).context("Failed to get segment text")?;
             transcript.push_str(&text);
             transcript.push(' ');
         }
-        
+
         Ok(transcript.trim().to_string())
     }
 }

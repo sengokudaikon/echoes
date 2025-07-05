@@ -1,0 +1,8 @@
+[build]
+rustflags = ["-W", "rust-2018-idioms"]
+
+[alias]
+ck = "check"
+t = "test"
+r = "run"
+rr = "run --release"

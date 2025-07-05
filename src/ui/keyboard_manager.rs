@@ -1,7 +1,10 @@
-use crate::config::RecordingShortcut;
-use crate::keyboard::{KeyboardEvent, KeyboardListener};
-use crate::permissions;
 use std::sync::mpsc;
+
+use crate::{
+    config::RecordingShortcut,
+    keyboard::{KeyboardEvent, KeyboardListener},
+    permissions,
+};
 
 /// Manages keyboard events and listener
 pub struct KeyboardManager {
@@ -76,13 +79,9 @@ impl KeyboardManager {
         events
     }
 
-    pub fn clear_receiver(&mut self) {
-        self.event_rx = None;
-    }
+    pub fn clear_receiver(&mut self) { self.event_rx = None; }
 }
 
 impl Default for KeyboardManager {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }

@@ -1,5 +1,4 @@
-use std::error::Error as StdError;
-use std::fmt;
+use std::{error::Error as StdError, fmt};
 
 /// Main error type for Echoes application
 #[derive(Debug)]
@@ -175,14 +174,12 @@ impl fmt::Display for PermissionError {
             PermissionError::AccessibilityDenied => {
                 write!(
                     f,
-                    "Accessibility permissions required. Please grant access in System Settings > Privacy & Security > Accessibility"
+                    "Accessibility permissions required. Please grant access in System Settings > Privacy & Security \
+                     > Accessibility"
                 )
             }
             PermissionError::MicrophoneDenied => {
-                write!(
-                    f,
-                    "Microphone access denied. Please grant microphone permissions"
-                )
+                write!(f, "Microphone access denied. Please grant microphone permissions")
             }
             PermissionError::SystemApiError(msg) => write!(f, "System API error: {msg}"),
         }
@@ -230,68 +227,46 @@ impl StdError for UiError {}
 
 // From implementations for easy conversion
 impl From<std::io::Error> for EchoesError {
-    fn from(err: std::io::Error) -> Self {
-        EchoesError::Io(err)
-    }
+    fn from(err: std::io::Error) -> Self { EchoesError::Io(err) }
 }
 
 impl From<AudioError> for EchoesError {
-    fn from(err: AudioError) -> Self {
-        EchoesError::Audio(err)
-    }
+    fn from(err: AudioError) -> Self { EchoesError::Audio(err) }
 }
 
 impl From<ConfigError> for EchoesError {
-    fn from(err: ConfigError) -> Self {
-        EchoesError::Config(err)
-    }
+    fn from(err: ConfigError) -> Self { EchoesError::Config(err) }
 }
 
 impl From<KeyboardError> for EchoesError {
-    fn from(err: KeyboardError) -> Self {
-        EchoesError::Keyboard(err)
-    }
+    fn from(err: KeyboardError) -> Self { EchoesError::Keyboard(err) }
 }
 
 impl From<SttError> for EchoesError {
-    fn from(err: SttError) -> Self {
-        EchoesError::Stt(err)
-    }
+    fn from(err: SttError) -> Self { EchoesError::Stt(err) }
 }
 
 impl From<PermissionError> for EchoesError {
-    fn from(err: PermissionError) -> Self {
-        EchoesError::Permission(err)
-    }
+    fn from(err: PermissionError) -> Self { EchoesError::Permission(err) }
 }
 
 impl From<LoggingError> for EchoesError {
-    fn from(err: LoggingError) -> Self {
-        EchoesError::Logging(err)
-    }
+    fn from(err: LoggingError) -> Self { EchoesError::Logging(err) }
 }
 
 impl From<UiError> for EchoesError {
-    fn from(err: UiError) -> Self {
-        EchoesError::Ui(err)
-    }
+    fn from(err: UiError) -> Self { EchoesError::Ui(err) }
 }
 
 // Helper for converting mutex errors
 impl<T> From<std::sync::PoisonError<T>> for AudioError {
-    fn from(_: std::sync::PoisonError<T>) -> Self {
-        AudioError::MutexPoisoned
-    }
+    fn from(_: std::sync::PoisonError<T>) -> Self { AudioError::MutexPoisoned }
 }
 
 impl<T> From<std::sync::PoisonError<T>> for KeyboardError {
-    fn from(_: std::sync::PoisonError<T>) -> Self {
-        KeyboardError::MutexPoisoned
-    }
+    fn from(_: std::sync::PoisonError<T>) -> Self { KeyboardError::MutexPoisoned }
 }
 
 impl<T> From<std::sync::PoisonError<T>> for LoggingError {
-    fn from(_: std::sync::PoisonError<T>) -> Self {
-        LoggingError::MutexPoisoned
-    }
+    fn from(_: std::sync::PoisonError<T>) -> Self { LoggingError::MutexPoisoned }
 }

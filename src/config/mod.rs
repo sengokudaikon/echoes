@@ -1,7 +1,9 @@
-use crate::error::{ConfigError, Result};
+use std::path::PathBuf;
+
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+
+use crate::error::{ConfigError, Result};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -67,7 +69,7 @@ pub enum WhisperModel {
     LargeV3,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct RecordingShortcut {
     pub mode: ShortcutMode,
     pub key: KeyCode,            // The main key
@@ -117,28 +119,8 @@ impl RecordingShortcut {
     }
 
     pub fn check_conflicts(&self) -> Vec<ConflictInfo> {
-        let mut conflicts = Vec::new();
-
-        // Check system conflicts with error severity
-        if let Some(system_conflict) = check_system_conflict(self) {
-            conflicts.push(ConflictInfo {
-                severity: ConflictSeverity::Error,
-                description: system_conflict,
-                suggestion: Some("Choose a different key combination".to_string()),
-            });
-        }
-
-        // Check common application conflicts with warning severity
-        if let Some(app_conflict) = check_application_conflict(self) {
-            conflicts.push(app_conflict);
-        }
-
-        // Check accessibility concerns with info severity
-        if let Some(accessibility_info) = check_accessibility_concerns(self) {
-            conflicts.push(accessibility_info);
-        }
-
-        conflicts
+        // Use the optimized conflict detection system
+        check_shortcut_conflicts_optimized(self)
     }
 }
 
@@ -289,7 +271,7 @@ pub enum KeyCode {
     BackQuote,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ShortcutMode {
     Hold,   // Hold key to record
     Toggle, // Press to start/stop
@@ -337,7 +319,9 @@ impl Default for Config {
                 enabled: false,
                 provider: LlmProvider::OpenAI,
                 model: "gpt-4o-mini".to_string(),
-                prompt: "Clean up the following transcript, fixing any errors and improving clarity while preserving the original meaning:\n\n{transcript}".to_string(),
+                prompt: "Clean up the following transcript, fixing any errors and improving clarity while preserving \
+                         the original meaning:\n\n{transcript}"
+                    .to_string(),
             },
         }
     }
@@ -350,8 +334,8 @@ impl Config {
         if config_path.exists() {
             let content = std::fs::read_to_string(&config_path)
                 .map_err(|e| ConfigError::LoadFailed(format!("Failed to read config file: {e}")))?;
-            let config: Config = toml::from_str(&content)
-                .map_err(|e| ConfigError::ParseError(format!("Invalid config format: {e}")))?;
+            let config: Config =
+                toml::from_str(&content).map_err(|e| ConfigError::ParseError(format!("Invalid config format: {e}")))?;
             Ok(config)
         } else {
             // Create default config
@@ -366,9 +350,8 @@ impl Config {
 
         // Create directory if it doesn't exist
         if let Some(parent) = config_path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| {
-                ConfigError::SaveFailed(format!("Failed to create config directory: {e}"))
-            })?;
+            std::fs::create_dir_all(parent)
+                .map_err(|e| ConfigError::SaveFailed(format!("Failed to create config directory: {e}")))?;
         }
 
         let content = toml::to_string_pretty(self)
@@ -392,14 +375,12 @@ impl Config {
         tokio::task::spawn_blocking(move || {
             // Create directory if it doesn't exist
             if let Some(parent) = config_path.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| {
-                    ConfigError::SaveFailed(format!("Failed to create config directory: {e}"))
-                })?;
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| ConfigError::SaveFailed(format!("Failed to create config directory: {e}")))?;
             }
 
-            std::fs::write(&config_path, content).map_err(|e| {
-                ConfigError::SaveFailed(format!("Failed to write config file: {e}"))
-            })?;
+            std::fs::write(&config_path, content)
+                .map_err(|e| ConfigError::SaveFailed(format!("Failed to write config file: {e}")))?;
 
             Ok::<(), crate::error::EchoesError>(())
         })
@@ -408,9 +389,8 @@ impl Config {
     }
 
     fn config_path() -> Result<PathBuf> {
-        let proj_dirs = ProjectDirs::from("com", "echoes", "echoes").ok_or_else(|| {
-            ConfigError::LoadFailed("Failed to determine config directory".to_string())
-        })?;
+        let proj_dirs = ProjectDirs::from("com", "echoes", "echoes")
+            .ok_or_else(|| ConfigError::LoadFailed("Failed to determine config directory".to_string()))?;
 
         Ok(proj_dirs.config_dir().join("config.toml"))
     }
@@ -631,9 +611,7 @@ fn check_application_conflict(shortcut: &RecordingShortcut) -> Option<ConflictIn
             KeyCode::S => Some(ConflictInfo {
                 severity: ConflictSeverity::Warning,
                 description: "Conflicts with Save in most applications".to_string(),
-                suggestion: Some(
-                    "Consider adding another modifier or using a different key".to_string(),
-                ),
+                suggestion: Some("Consider adding another modifier or using a different key".to_string()),
             }),
             KeyCode::C => Some(ConflictInfo {
                 severity: ConflictSeverity::Warning,
@@ -668,9 +646,7 @@ fn check_application_conflict(shortcut: &RecordingShortcut) -> Option<ConflictIn
             KeyCode::N => Some(ConflictInfo {
                 severity: ConflictSeverity::Warning,
                 description: "Conflicts with New in most applications".to_string(),
-                suggestion: Some(
-                    "This will prevent creating new documents while recording".to_string(),
-                ),
+                suggestion: Some("This will prevent creating new documents while recording".to_string()),
             }),
             KeyCode::O => Some(ConflictInfo {
                 severity: ConflictSeverity::Warning,
@@ -795,4 +771,314 @@ fn is_universal_modifier(key: &KeyCode) -> bool {
         key,
         KeyCode::Alt | KeyCode::AltGr | KeyCode::MetaLeft | KeyCode::MetaRight
     )
+}
+
+// ============================================================================
+// REFACTORED CONFLICT DETECTION SYSTEM
+// ============================================================================
+
+use std::{
+    collections::HashMap,
+    sync::{LazyLock, Mutex},
+};
+
+/// Trait for conflict detection strategies
+trait ConflictDetector: Send + Sync {
+    /// Check if the given shortcut conflicts with this detector's domain
+    fn check(&self, shortcut: &RecordingShortcut) -> Option<ConflictInfo>;
+    /// Get the name of this detector for debugging
+    fn name(&self) -> &'static str;
+}
+
+/// System shortcut conflict detector that checks against OS-level shortcuts
+struct SystemConflictDetector {
+    shortcuts: &'static HashMap<ShortcutPattern, &'static str>,
+}
+
+/// Application shortcut conflict detector that checks against common app
+/// shortcuts
+struct ApplicationConflictDetector {
+    shortcuts: &'static HashMap<ShortcutPattern, ConflictInfo>,
+}
+
+/// Accessibility concern detector that checks for usability issues
+struct AccessibilityDetector;
+
+/// Pattern for matching shortcuts in lookup tables
+#[derive(Hash, Eq, PartialEq, Clone)]
+struct ShortcutPattern {
+    key: KeyCode,
+    modifiers: Vec<KeyCode>,
+    platform: Option<&'static str>,
+}
+
+/// Cache for conflict detection results to improve performance
+#[derive(Default)]
+struct ConflictCache {
+    cache: HashMap<RecordingShortcut, Vec<ConflictInfo>>,
+}
+
+/// Main conflict detection system that coordinates multiple detectors
+pub struct ConflictDetectionSystem {
+    detectors: Vec<Box<dyn ConflictDetector>>,
+    cache: ConflictCache,
+}
+
+// Lookup tables for system shortcuts
+static MACOS_SYSTEM_SHORTCUTS: LazyLock<HashMap<ShortcutPattern, &'static str>> = LazyLock::new(|| {
+    let mut map = HashMap::new();
+
+    // Cmd+key shortcuts
+    let cmd_shortcuts = [
+        (KeyCode::Q, "Cmd+Q quits applications"),
+        (KeyCode::W, "Cmd+W closes windows"),
+        (KeyCode::H, "Cmd+H hides applications"),
+        (KeyCode::M, "Cmd+M minimizes windows"),
+        (KeyCode::Tab, "Cmd+Tab switches applications"),
+        (KeyCode::Space, "Cmd+Space opens Spotlight search"),
+    ];
+
+    for (key, desc) in cmd_shortcuts {
+        map.insert(
+            ShortcutPattern {
+                key,
+                modifiers: vec![KeyCode::MetaLeft],
+                platform: Some("macos"),
+            },
+            desc,
+        );
+    }
+
+    map
+});
+
+static WINDOWS_SYSTEM_SHORTCUTS: LazyLock<HashMap<ShortcutPattern, &'static str>> = LazyLock::new(|| {
+    let mut map = HashMap::new();
+
+    // Win+key shortcuts
+    let win_shortcuts = [
+        (KeyCode::L, "Win+L locks the computer"),
+        (KeyCode::D, "Win+D shows desktop"),
+        (KeyCode::Tab, "Win+Tab opens Task View"),
+    ];
+
+    for (key, desc) in win_shortcuts {
+        map.insert(
+            ShortcutPattern {
+                key,
+                modifiers: vec![KeyCode::MetaLeft],
+                platform: Some("windows"),
+            },
+            desc,
+        );
+    }
+
+    // Alt+Tab
+    map.insert(
+        ShortcutPattern {
+            key: KeyCode::Tab,
+            modifiers: vec![KeyCode::Alt],
+            platform: Some("windows"),
+        },
+        "Alt+Tab switches windows",
+    );
+
+    map
+});
+
+static APPLICATION_SHORTCUTS: LazyLock<HashMap<ShortcutPattern, ConflictInfo>> = LazyLock::new(|| {
+    let mut map = HashMap::new();
+
+    let common_shortcuts = [
+        (KeyCode::S, "Save", "most applications"),
+        (KeyCode::C, "Copy", "most applications"),
+        (KeyCode::V, "Paste", "most applications"),
+        (KeyCode::X, "Cut", "most applications"),
+        (KeyCode::Z, "Undo", "most applications"),
+        (KeyCode::A, "Select All", "most applications"),
+        (KeyCode::F, "Find", "most applications"),
+        (KeyCode::N, "New", "most applications"),
+        (KeyCode::O, "Open", "most applications"),
+        (KeyCode::R, "Refresh/Reload", "most applications"),
+    ];
+
+    for (key, action, context) in common_shortcuts {
+        let conflict_info = ConflictInfo {
+            severity: ConflictSeverity::Warning,
+            description: format!("Conflicts with {action} in {context}"),
+            suggestion: Some(format!("This will prevent {action} while recording")),
+        };
+
+        // Both Ctrl and Cmd variations
+        for modifier in [KeyCode::ControlLeft, KeyCode::MetaLeft] {
+            map.insert(
+                ShortcutPattern {
+                    key,
+                    modifiers: vec![modifier],
+                    platform: None,
+                },
+                conflict_info.clone(),
+            );
+        }
+    }
+
+    map
+});
+
+impl SystemConflictDetector {
+    fn new() -> Self {
+        #[cfg(target_os = "macos")]
+        let shortcuts = &*MACOS_SYSTEM_SHORTCUTS;
+        #[cfg(target_os = "windows")]
+        let shortcuts = &*WINDOWS_SYSTEM_SHORTCUTS;
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+        let shortcuts = {
+            static EMPTY: LazyLock<HashMap<ShortcutPattern, &'static str>> = LazyLock::new(HashMap::new);
+            &*EMPTY
+        };
+
+        Self { shortcuts }
+    }
+}
+
+impl ConflictDetector for SystemConflictDetector {
+    fn check(&self, shortcut: &RecordingShortcut) -> Option<ConflictInfo> {
+        let pattern = ShortcutPattern {
+            key: shortcut.key,
+            modifiers: shortcut.modifiers.clone(),
+            platform: None,
+        };
+
+        self.shortcuts.get(&pattern).map(|desc| ConflictInfo {
+            severity: ConflictSeverity::Error,
+            description: (*desc).into(),
+            suggestion: Some("System shortcuts cannot be overridden".into()),
+        })
+    }
+
+    fn name(&self) -> &'static str {
+        "System"
+    }
+}
+
+impl ApplicationConflictDetector {
+    fn new() -> Self {
+        Self {
+            shortcuts: &*APPLICATION_SHORTCUTS,
+        }
+    }
+}
+
+impl ConflictDetector for ApplicationConflictDetector {
+    fn check(&self, shortcut: &RecordingShortcut) -> Option<ConflictInfo> {
+        let pattern = ShortcutPattern {
+            key: shortcut.key,
+            modifiers: shortcut.modifiers.clone(),
+            platform: None,
+        };
+
+        self.shortcuts.get(&pattern).cloned()
+    }
+
+    fn name(&self) -> &'static str {
+        "Application"
+    }
+}
+
+impl ConflictDetector for AccessibilityDetector {
+    fn check(&self, shortcut: &RecordingShortcut) -> Option<ConflictInfo> {
+        check_accessibility_concerns(shortcut)
+    }
+
+    fn name(&self) -> &'static str {
+        "Accessibility"
+    }
+}
+
+impl ConflictDetectionSystem {
+    /// Create a new conflict detection system with all detectors
+    pub fn new() -> Self {
+        let detectors: Vec<Box<dyn ConflictDetector>> = vec![
+            Box::new(SystemConflictDetector::new()),
+            Box::new(ApplicationConflictDetector::new()),
+            Box::new(AccessibilityDetector),
+        ];
+
+        Self {
+            detectors,
+            cache: ConflictCache::default(),
+        }
+    }
+
+    /// Check for conflicts with caching for performance
+    ///
+    /// # Arguments
+    /// * `shortcut` - The recording shortcut to check for conflicts
+    ///
+    /// # Returns
+    /// Vector of conflict information if any conflicts are found
+    pub fn check_conflicts(&mut self, shortcut: &RecordingShortcut) -> Vec<ConflictInfo> {
+        // Check cache first
+        if let Some(cached) = self.cache.cache.get(shortcut) {
+            return cached.clone();
+        }
+
+        // Run all detectors
+        let mut conflicts = Vec::new();
+        for detector in &self.detectors {
+            if let Some(conflict) = detector.check(shortcut) {
+                conflicts.push(conflict);
+            }
+        }
+
+        // Cache the result
+        self.cache.cache.insert(shortcut.clone(), conflicts.clone());
+
+        // Limit cache size to prevent memory growth
+        if self.cache.cache.len() > 1000 {
+            self.cache.cache.clear();
+        }
+
+        conflicts
+    }
+
+    /// Clear the conflict detection cache
+    pub fn clear_cache(&mut self) {
+        self.cache.cache.clear();
+    }
+}
+
+// Global instance with thread-safe access
+static CONFLICT_SYSTEM: LazyLock<Mutex<ConflictDetectionSystem>> =
+    LazyLock::new(|| Mutex::new(ConflictDetectionSystem::new()));
+
+/// Optimized conflict checking function that replaces the original large
+/// functions
+///
+/// # Arguments
+/// * `shortcut` - The recording shortcut to check for conflicts
+///
+/// # Returns
+/// Vector of conflict information if any conflicts are found
+pub fn check_shortcut_conflicts_optimized(shortcut: &RecordingShortcut) -> Vec<ConflictInfo> {
+    if let Ok(mut system) = CONFLICT_SYSTEM.lock() {
+        system.check_conflicts(shortcut)
+    } else {
+        // Fallback to original implementation if mutex is poisoned
+        let mut fallback_conflicts = Vec::new();
+        if let Some(system_conflict) = check_system_conflict(shortcut) {
+            fallback_conflicts.push(ConflictInfo {
+                severity: ConflictSeverity::Error,
+                description: system_conflict,
+                suggestion: Some("System shortcuts cannot be overridden".into()),
+            });
+        }
+        if let Some(app_conflict) = check_application_conflict(shortcut) {
+            fallback_conflicts.push(app_conflict);
+        }
+        if let Some(accessibility_conflict) = check_accessibility_concerns(shortcut) {
+            fallback_conflicts.push(accessibility_conflict);
+        }
+        fallback_conflicts
+    }
 }

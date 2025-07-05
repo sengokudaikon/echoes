@@ -14,30 +14,18 @@ impl ShortcutManager {
         }
     }
 
-    pub fn record_shortcut(&mut self, shortcut: RecordingShortcut) {
-        self.recorded_shortcut = Some(shortcut);
-    }
+    pub fn record_shortcut(&mut self, shortcut: RecordingShortcut) { self.recorded_shortcut = Some(shortcut); }
 
-    pub fn take_recorded(&mut self) -> Option<RecordingShortcut> {
-        self.recorded_shortcut.take()
-    }
+    pub fn take_recorded(&mut self) -> Option<RecordingShortcut> { self.recorded_shortcut.take() }
 
-    pub fn clear_recorded(&mut self) {
-        self.recorded_shortcut = None;
-    }
+    pub fn clear_recorded(&mut self) { self.recorded_shortcut = None; }
 
     #[allow(dead_code)]
-    pub fn toggle_visual_editor(&mut self) {
-        self.show_visual_editor = !self.show_visual_editor;
-    }
+    pub fn toggle_visual_editor(&mut self) { self.show_visual_editor = !self.show_visual_editor; }
 
-    pub fn set_visual_editor(&mut self, show: bool) {
-        self.show_visual_editor = show;
-    }
+    pub fn set_visual_editor(&mut self, show: bool) { self.show_visual_editor = show; }
 }
 
 impl Default for ShortcutManager {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }

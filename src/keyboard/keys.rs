@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 
-use crate::config::KeyCode;
 use rdev::Key;
+
+use crate::config::KeyCode;
 
 pub fn keycode_to_rdev_key(keycode: KeyCode) -> Key {
     match keycode {

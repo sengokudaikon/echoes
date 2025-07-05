@@ -1,9 +1,13 @@
-use crate::error::{LoggingError, Result};
-use std::path::PathBuf;
-use std::sync::{LazyLock, Mutex};
+use std::{
+    path::PathBuf,
+    sync::{LazyLock, Mutex},
+};
+
 use tracing::{Level, Subscriber};
 use tracing_appender::{non_blocking, rolling};
 use tracing_subscriber::{EnvFilter, Layer, fmt, layer::SubscriberExt, util::SubscriberInitExt};
+
+use crate::error::{LoggingError, Result};
 
 /// Global storage for the tracing guard to prevent memory leaks
 static TRACING_GUARD: LazyLock<Mutex<Option<tracing_appender::non_blocking::WorkerGuard>>> =
@@ -44,9 +48,8 @@ impl Default for TracingConfig {
 pub fn init_tracing(config: TracingConfig) -> Result<()> {
     // Create log directory if it doesn't exist
     if config.file_output {
-        std::fs::create_dir_all(&config.log_dir).map_err(|e| {
-            LoggingError::FileCreationFailed(format!("Failed to create log directory: {e}"))
-        })?;
+        std::fs::create_dir_all(&config.log_dir)
+            .map_err(|e| LoggingError::FileCreationFailed(format!("Failed to create log directory: {e}")))?;
     }
 
     // Set up environment filter
@@ -89,7 +92,8 @@ pub fn init_tracing(config: TracingConfig) -> Result<()> {
         // Store the guard to keep the non-blocking writer alive
         if let Ok(mut guard_storage) = TRACING_GUARD.lock() {
             *guard_storage = Some(guard);
-        } else {
+        }
+        else {
             // Fallback if mutex is poisoned - still better than leaking
             std::mem::forget(guard);
         }
@@ -104,9 +108,7 @@ pub fn init_tracing(config: TracingConfig) -> Result<()> {
         .with(layers)
         .with(error_layer)
         .try_init()
-        .map_err(|e| {
-            LoggingError::FileCreationFailed(format!("Failed to initialize tracing: {e}"))
-        })?;
+        .map_err(|e| LoggingError::FileCreationFailed(format!("Failed to initialize tracing: {e}")))?;
 
     tracing::info!(
         app_name = config.app_name,
@@ -128,7 +130,8 @@ pub fn cleanup_tracing() {
     }
 }
 
-/// Custom layer for tracking errors and sending them to an error reporting service
+/// Custom layer for tracking errors and sending them to an error reporting
+/// service
 struct ErrorTrackingLayer {
     error_count: std::sync::atomic::AtomicU64,
 }
@@ -145,15 +148,10 @@ impl<S> Layer<S> for ErrorTrackingLayer
 where
     S: Subscriber,
 {
-    fn on_event(
-        &self,
-        event: &tracing::Event<'_>,
-        _ctx: tracing_subscriber::layer::Context<'_, S>,
-    ) {
+    fn on_event(&self, event: &tracing::Event<'_>, _ctx: tracing_subscriber::layer::Context<'_, S>) {
         // Track error events
         if event.metadata().level() == &Level::ERROR {
-            self.error_count
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.error_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
             // In a production app, you might send this to an error tracking service
             // For now, we'll just track locally
@@ -245,9 +243,11 @@ pub fn setup_panic_handler() {
 
         let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
             s.to_string()
-        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+        }
+        else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
             s.clone()
-        } else {
+        }
+        else {
             "Unknown panic payload".to_string()
         };
 
@@ -265,16 +265,15 @@ pub fn setup_panic_handler() {
 pub fn cleanup_old_logs(log_dir: &PathBuf, days_to_keep: u32) -> Result<()> {
     let cutoff = chrono::Utc::now() - chrono::Duration::days(days_to_keep as i64);
 
-    for entry in std::fs::read_dir(log_dir).map_err(|e| {
-        LoggingError::FileCreationFailed(format!("Failed to read log directory: {e}"))
-    })? {
-        let entry = entry.map_err(|e| {
-            LoggingError::FileCreationFailed(format!("Failed to read directory entry: {e}"))
-        })?;
+    for entry in std::fs::read_dir(log_dir)
+        .map_err(|e| LoggingError::FileCreationFailed(format!("Failed to read log directory: {e}")))?
+    {
+        let entry =
+            entry.map_err(|e| LoggingError::FileCreationFailed(format!("Failed to read directory entry: {e}")))?;
 
-        let metadata = entry.metadata().map_err(|e| {
-            LoggingError::FileCreationFailed(format!("Failed to read file metadata: {e}"))
-        })?;
+        let metadata = entry
+            .metadata()
+            .map_err(|e| LoggingError::FileCreationFailed(format!("Failed to read file metadata: {e}")))?;
 
         if metadata.is_file() {
             if let Ok(modified) = metadata.modified() {

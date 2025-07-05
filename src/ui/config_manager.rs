@@ -1,7 +1,8 @@
-use crate::config::Config;
-use crate::error::Result;
 use std::sync::mpsc;
+
 use tokio::task;
+
+use crate::{config::Config, error::Result};
 
 /// Manages config operations without blocking the UI thread
 pub struct ConfigManager {
@@ -33,13 +34,9 @@ impl ConfigManager {
 
     /// Synchronous save for critical operations
     #[allow(dead_code)]
-    pub fn save_sync(&self, config: &Config) -> Result<()> {
-        config.save()
-    }
+    pub fn save_sync(&self, config: &Config) -> Result<()> { config.save() }
 }
 
 impl Default for ConfigManager {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }

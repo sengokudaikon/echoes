@@ -1,0 +1,9 @@
+[tool.tarpaulin.html]
+out = "Html"
+output-dir = "coverage"
+
+[tool.tarpaulin.default]
+exclude-files = [
+    "target/*",
+]
+timeout = 180

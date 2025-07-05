@@ -1,9 +1,7 @@
-use crate::config::{KeyCode, RecordingShortcut, ShortcutMode};
 use eframe::egui;
 
-use super::shortcut_editor::{
-    ConflictDisplay, ShortcutBuilder, ShortcutEditor, ShortcutEditorAction,
-};
+use super::shortcut_editor::{ConflictDisplay, ShortcutBuilder, ShortcutEditor, ShortcutEditorAction};
+use crate::config::{KeyCode, RecordingShortcut, ShortcutMode};
 
 /// Context for shortcut operations
 #[allow(dead_code)]
@@ -43,10 +41,7 @@ pub fn render_shortcut_presets(ui: &mut egui::Ui, mut on_apply: impl FnMut(Recor
 
 /// Handles the shortcut editor UI and returns actions to take
 #[allow(dead_code)]
-pub fn handle_shortcut_editor(
-    ui: &mut egui::Ui,
-    ctx: &mut ShortcutContext,
-) -> ShortcutEditorAction {
+pub fn handle_shortcut_editor(ui: &mut egui::Ui, ctx: &mut ShortcutContext<'_>) -> ShortcutEditorAction {
     // Shortcut editor
     let (_editor_response, editor_action) = ShortcutEditor::new(ctx.config_shortcut)
         .recording(*ctx.recording_shortcut)
@@ -62,9 +57,7 @@ pub fn handle_shortcut_editor(
 
 /// Simplified shortcut editor handler for composition pattern
 pub fn handle_shortcut_editor_simple(
-    ui: &mut egui::Ui,
-    config_shortcut: &mut RecordingShortcut,
-    recording_shortcut: bool,
+    ui: &mut egui::Ui, config_shortcut: &mut RecordingShortcut, recording_shortcut: bool,
 ) -> ShortcutEditorAction {
     // Shortcut editor
     let (_editor_response, editor_action) = ShortcutEditor::new(config_shortcut)
@@ -79,11 +72,7 @@ pub fn handle_shortcut_editor_simple(
 }
 
 /// Renders the shortcut mode selection UI
-pub fn render_shortcut_mode(
-    ui: &mut egui::Ui,
-    mode: &mut ShortcutMode,
-    mut on_change: impl FnMut(&str),
-) -> bool {
+pub fn render_shortcut_mode(ui: &mut egui::Ui, mode: &mut ShortcutMode, mut on_change: impl FnMut(&str)) -> bool {
     let mut changed = false;
 
     ui.horizontal(|ui| {
@@ -92,10 +81,7 @@ pub fn render_shortcut_mode(
             on_change("Changed mode to Hold");
             changed = true;
         }
-        if ui
-            .radio_value(mode, ShortcutMode::Toggle, "Toggle")
-            .clicked()
-        {
+        if ui.radio_value(mode, ShortcutMode::Toggle, "Toggle").clicked() {
             on_change("Changed mode to Toggle");
             changed = true;
         }
@@ -106,19 +92,19 @@ pub fn render_shortcut_mode(
 
 /// Renders the visual editor UI
 pub fn render_visual_editor(
-    ui: &mut egui::Ui,
-    shortcut: &mut RecordingShortcut,
-    show_visual_editor: &mut bool,
-    mut on_change: impl FnMut(&str),
+    ui: &mut egui::Ui, shortcut: &mut RecordingShortcut, show_visual_editor: &mut bool, mut on_change: impl FnMut(&str),
 ) -> bool {
     let mut changed = false;
 
     if ui
-        .button(if *show_visual_editor {
-            "Hide Visual Editor"
-        } else {
-            "Show Visual Editor"
-        })
+        .button(
+            if *show_visual_editor {
+                "Hide Visual Editor"
+            }
+            else {
+                "Show Visual Editor"
+            },
+        )
         .clicked()
     {
         *show_visual_editor = !*show_visual_editor;
@@ -133,13 +119,13 @@ pub fn render_visual_editor(
         builder.show(ui);
 
         // Check if shortcut changed by comparing key fields
-        let shortcut_changed =
-            shortcut.key != original_key || shortcut.modifiers.len() != original_modifiers_len;
+        let shortcut_changed = shortcut.key != original_key || shortcut.modifiers.len() != original_modifiers_len;
 
         if shortcut_changed {
             if let Err(err) = shortcut.validate() {
                 ui.colored_label(egui::Color32::YELLOW, format!("⚠️ {err}"));
-            } else {
+            }
+            else {
                 on_change("Updated shortcut from visual editor");
                 changed = true;
             }
@@ -150,6 +136,4 @@ pub fn render_visual_editor(
 }
 
 /// Formats a shortcut for display
-pub fn format_shortcut(shortcut: &RecordingShortcut) -> String {
-    shortcut.format_display()
-}
+pub fn format_shortcut(shortcut: &RecordingShortcut) -> String { shortcut.format_display() }

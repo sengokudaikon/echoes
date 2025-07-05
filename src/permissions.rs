@@ -60,9 +60,14 @@ pub fn ensure_permissions() -> Result<bool, String> {
         if check_accessibility_permissions(true) {
             log_debug!("User granted accessibility permissions");
             return Ok(true);
-        } else {
+        }
+        else {
             log_error!("User denied accessibility permissions");
-            return Err("Accessibility permissions required. Please grant access in System Settings > Privacy & Security > Accessibility, then restart the app.".to_string());
+            return Err(
+                "Accessibility permissions required. Please grant access in System Settings > Privacy & Security > \
+                 Accessibility, then restart the app."
+                    .to_string(),
+            );
         }
     }
 

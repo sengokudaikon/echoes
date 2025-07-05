@@ -1,5 +1,6 @@
-use crate::config::Config;
 use eframe::egui;
+
+use crate::config::Config;
 
 mod shortcut_editor;
 use shortcut_editor::ShortcutEditorAction;
@@ -38,9 +39,7 @@ impl WhispoApp {
             }
             ShortcutEditorAction::Reset => {
                 self.state.add_log("Shortcut reset to default (Ctrl)");
-                self.state
-                    .config_manager
-                    .save_async(self.state.config.clone());
+                self.state.config_manager.save_async(self.state.config.clone());
             }
             ShortcutEditorAction::None => {}
         }
@@ -52,9 +51,7 @@ impl WhispoApp {
                 Ok(()) => {
                     self.state.config.recording_shortcut = recorded;
                     self.state.add_log("Applied new shortcut");
-                    self.state
-                        .config_manager
-                        .save_async(self.state.config.clone());
+                    self.state.config_manager.save_async(self.state.config.clone());
                     self.state.update_shortcut_listener();
                 }
                 Err(err) => {
@@ -101,11 +98,7 @@ impl eframe::App for WhispoApp {
             }
 
             // Recording status
-            status::render_status_section(
-                ui,
-                self.state.recording(),
-                self.state.permissions_granted(),
-            );
+            status::render_status_section(ui, self.state.recording(), self.state.permissions_granted());
 
             ui.separator();
 
@@ -133,9 +126,7 @@ impl WhispoApp {
             if let Some(msg) = stt_message {
                 self.state.add_log(msg);
             }
-            self.state
-                .config_manager
-                .save_async(self.state.config.clone());
+            self.state.config_manager.save_async(self.state.config.clone());
         }
 
         ui.add_space(10.0);
@@ -148,9 +139,7 @@ impl WhispoApp {
             if let Some(msg) = api_message {
                 self.state.add_log(msg);
             }
-            self.state
-                .config_manager
-                .save_async(self.state.config.clone());
+            self.state.config_manager.save_async(self.state.config.clone());
         }
 
         ui.add_space(10.0);
@@ -182,17 +171,13 @@ impl WhispoApp {
 
             // Shortcut mode
             let mut mode_message = None;
-            if shortcuts::render_shortcut_mode(
-                ui,
-                &mut self.state.config.recording_shortcut.mode,
-                |msg| mode_message = Some(msg.to_string()),
-            ) {
+            if shortcuts::render_shortcut_mode(ui, &mut self.state.config.recording_shortcut.mode, |msg| {
+                mode_message = Some(msg.to_string())
+            }) {
                 if let Some(msg) = mode_message {
                     self.state.add_log(msg);
                 }
-                self.state
-                    .config_manager
-                    .save_async(self.state.config.clone());
+                self.state.config_manager.save_async(self.state.config.clone());
                 self.state.update_shortcut_listener();
             }
 
@@ -201,18 +186,13 @@ impl WhispoApp {
             // Visual editor
             let mut editor_message = None;
             let mut show_editor = self.state.show_visual_editor();
-            if shortcuts::render_visual_editor(
-                ui,
-                &mut self.state.config.recording_shortcut,
-                &mut show_editor,
-                |msg| editor_message = Some(msg.to_string()),
-            ) {
+            if shortcuts::render_visual_editor(ui, &mut self.state.config.recording_shortcut, &mut show_editor, |msg| {
+                editor_message = Some(msg.to_string())
+            }) {
                 if let Some(msg) = editor_message {
                     self.state.add_log(msg);
                 }
-                self.state
-                    .config_manager
-                    .save_async(self.state.config.clone());
+                self.state.config_manager.save_async(self.state.config.clone());
                 self.state.update_shortcut_listener();
             }
             self.state.set_show_visual_editor(show_editor);

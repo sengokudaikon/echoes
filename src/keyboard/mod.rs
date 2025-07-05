@@ -1,12 +1,35 @@
-use crate::config::{KeyCode, RecordingShortcut, ShortcutMode};
-use crate::{log_debug, log_error};
+use std::{
+    sync::{Arc, Mutex, mpsc},
+    thread,
+};
+
 use anyhow::Result;
 use rdev::{Event, EventType, listen};
-use std::sync::{Arc, Mutex, mpsc};
-use std::thread;
+
+use crate::{
+    config::{KeyCode, RecordingShortcut, ShortcutMode},
+    log_debug, log_error,
+};
 
 mod keys;
 use keys::rdev_key_to_keycode;
+
+/// Trait for handling keyboard listener errors
+trait ErrorHandler {
+    fn handle_error(&self, error: &str);
+}
+
+/// Default error handler that sends errors through the channel
+struct ChannelErrorHandler {
+    sender: mpsc::Sender<KeyboardEvent>,
+}
+
+impl ErrorHandler for ChannelErrorHandler {
+    fn handle_error(&self, error: &str) {
+        log_error!("Keyboard listener error: {}", error);
+        let _ = self.sender.send(KeyboardEvent::ListenerError(error.to_string()));
+    }
+}
 
 pub enum KeyboardEvent {
     RecordingKeyPressed,
@@ -79,44 +102,17 @@ impl KeyboardListener {
         thread::spawn(move || {
             log_debug!("Keyboard listener thread started");
 
-            // Set up panic hook to catch details
-            let orig_hook = std::panic::take_hook();
-            std::panic::set_hook(Box::new(move |panic_info| {
-                log_error!("Panic in keyboard thread: {:?}", panic_info);
-                orig_hook(panic_info);
-            }));
+            let error_handler = ChannelErrorHandler { sender: sender.clone() };
 
-            // Clone sender for error handling
-            let error_sender = sender.clone();
-
-            // Wrap the listen call in a panic catch to handle the crash
-            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                listen(move |event| {
-                    handle_event(event, &sender, &shortcut, &state);
-                })
-            }));
-
-            match result {
-                Ok(Ok(())) => {
+            match listen(move |event| {
+                handle_event(event, &sender, &shortcut, &state);
+            }) {
+                Ok(()) => {
                     log_debug!("Keyboard listener exited normally");
                 }
-                Ok(Err(error)) => {
-                    log_error!("Keyboard listener error: {:?}", error);
-                    let _ = error_sender.send(KeyboardEvent::ListenerError(format!(
-                        "Keyboard listener error: {error:?}"
-                    )));
-                }
-                Err(panic) => {
-                    let msg = if let Some(s) = panic.downcast_ref::<&str>() {
-                        s.to_string()
-                    } else if let Some(s) = panic.downcast_ref::<String>() {
-                        s.clone()
-                    } else {
-                        "Unknown panic in keyboard listener".to_string()
-                    };
-                    log_error!("Keyboard listener panicked: {}", msg);
-                    let _ = error_sender.send(KeyboardEvent::ListenerError(
-                        "Keyboard listener crashed. This might be due to macOS security restrictions. Try running from Terminal.app with accessibility permissions.".to_string()
+                Err(error) => {
+                    error_handler.handle_error(&format!(
+                        "Keyboard listener failed: {error:?}. This might be due to missing accessibility permissions."
                     ));
                 }
             }
@@ -127,9 +123,7 @@ impl KeyboardListener {
 }
 
 fn handle_event(
-    event: Event,
-    sender: &mpsc::Sender<KeyboardEvent>,
-    shortcut: &Arc<Mutex<RecordingShortcut>>,
+    event: Event, sender: &mpsc::Sender<KeyboardEvent>, shortcut: &Arc<Mutex<RecordingShortcut>>,
     state: &Arc<Mutex<ListenerState>>,
 ) {
     // First check if we're in recording mode - if so, handle ONLY recording logic
@@ -166,13 +160,15 @@ fn handle_event(
                                     if !state.recording_active {
                                         state.recording_active = true;
                                         let _ = sender.send(KeyboardEvent::RecordingKeyPressed);
-                                    } else {
+                                    }
+                                    else {
                                         state.recording_active = false;
                                         let _ = sender.send(KeyboardEvent::RecordingKeyReleased);
                                     }
                                 }
                             }
-                        } else if state.recording_active && shortcut.mode == ShortcutMode::Hold {
+                        }
+                        else if state.recording_active && shortcut.mode == ShortcutMode::Hold {
                             // Any other key during hold mode cancels recording
                             state.recording_active = false;
                             let _ = sender.send(KeyboardEvent::OtherKeyPressed);
@@ -205,11 +201,7 @@ fn handle_event(
     }
 }
 
-fn handle_recording_event(
-    event: Event,
-    sender: &mpsc::Sender<KeyboardEvent>,
-    state: &Arc<Mutex<ListenerState>>,
-) {
+fn handle_recording_event(event: Event, sender: &mpsc::Sender<KeyboardEvent>, state: &Arc<Mutex<ListenerState>>) {
     match event.event_type {
         EventType::KeyPress(key) => {
             if let Some(keycode) = rdev_key_to_keycode(key) {
@@ -255,8 +247,7 @@ fn handle_recording_event(
                         );
 
                         // Create new shortcut from recorded keys
-                        let (main_key, modifiers) =
-                            extract_shortcut_from_keys(&state.recorded_keys);
+                        let (main_key, modifiers) = extract_shortcut_from_keys(&state.recorded_keys);
                         if let Some(main_key) = main_key {
                             let new_shortcut = RecordingShortcut {
                                 mode: ShortcutMode::Hold, // Default to Hold mode
@@ -271,7 +262,8 @@ fn handle_recording_event(
                             state.recording_shortcut = false;
                             state.recorded_keys.clear();
                             let _ = sender.send(KeyboardEvent::ShortcutRecorded(new_shortcut));
-                        } else {
+                        }
+                        else {
                             log_debug!("No main key found in recorded keys");
                         }
                     }
@@ -302,13 +294,15 @@ fn extract_shortcut_from_keys(keys: &[KeyCode]) -> (Option<KeyCode>, Vec<KeyCode
     for key in keys {
         if modifier_keys.contains(key) {
             potential_modifier_keys.push(*key);
-        } else {
+        }
+        else {
             // Use the last non-modifier key as the main key
             main_key = Some(*key);
         }
     }
 
-    // If we only have modifier keys and no regular key, treat the first modifier as the main key
+    // If we only have modifier keys and no regular key, treat the first modifier as
+    // the main key
     if main_key.is_none() && !potential_modifier_keys.is_empty() {
         // Use the first modifier key as the main key
         main_key = Some(potential_modifier_keys[0]);
@@ -324,7 +318,8 @@ fn extract_shortcut_from_keys(keys: &[KeyCode]) -> (Option<KeyCode>, Vec<KeyCode
                 modifiers.push(normalized);
             }
         }
-    } else {
+    }
+    else {
         // Normal case: all modifier keys become modifiers
         for key in potential_modifier_keys {
             let normalized = match key {
@@ -370,10 +365,7 @@ fn is_shortcut_active(pressed_keys: &[KeyCode], shortcut: &RecordingShortcut) ->
         ];
 
         for key in pressed_keys {
-            if modifier_keys.contains(key)
-                && !shortcut.modifiers.contains(key)
-                && *key != shortcut.key
-            {
+            if modifier_keys.contains(key) && !shortcut.modifiers.contains(key) && *key != shortcut.key {
                 return false;
             }
         }
@@ -387,8 +379,8 @@ fn is_shortcut_active(pressed_keys: &[KeyCode], shortcut: &RecordingShortcut) ->
 pub fn type_text(text: &str) -> Result<()> {
     use enigo::{Enigo, Keyboard, Settings};
 
-    let mut enigo = Enigo::new(&Settings::default())
-        .map_err(|e| anyhow::anyhow!("Failed to create Enigo instance: {}", e))?;
+    let mut enigo =
+        Enigo::new(&Settings::default()).map_err(|e| anyhow::anyhow!("Failed to create Enigo instance: {}", e))?;
 
     enigo
         .text(text)

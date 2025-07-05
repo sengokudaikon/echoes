@@ -1,10 +1,14 @@
-use crate::error::{LoggingError, Result};
+use std::{
+    fs::{File, OpenOptions},
+    io::Write,
+    path::PathBuf,
+    sync::{LazyLock, Mutex},
+};
+
 use chrono::Local;
-use std::fs::{File, OpenOptions};
-use std::io::Write;
-use std::path::PathBuf;
-use std::sync::{LazyLock, Mutex};
 use tracing_subscriber::{EnvFilter, fmt};
+
+use crate::error::{LoggingError, Result};
 
 static LOG_FILE: LazyLock<Mutex<Option<File>>> = LazyLock::new(|| Mutex::new(None));
 
@@ -22,11 +26,13 @@ pub fn init_logging() -> Result<()> {
 
     // Set up tracing subscriber for console output
     fmt()
-        .with_env_filter(EnvFilter::from_default_env().add_directive(
-            "echoes=debug".parse().map_err(|e| {
-                LoggingError::FileCreationFailed(format!("Invalid log filter: {e}"))
-            })?,
-        ))
+        .with_env_filter(
+            EnvFilter::from_default_env().add_directive(
+                "echoes=debug"
+                    .parse()
+                    .map_err(|e| LoggingError::FileCreationFailed(format!("Invalid log filter: {e}")))?,
+            ),
+        )
         .with_target(false)
         .init();
 
@@ -42,12 +48,7 @@ pub fn log_to_file(message: &str) {
     match LOG_FILE.lock() {
         Ok(mut guard) => {
             if let Some(ref mut file) = *guard {
-                let _ = writeln!(
-                    file,
-                    "[{}] {}",
-                    Local::now().format("%H:%M:%S%.3f"),
-                    message
-                );
+                let _ = writeln!(file, "[{}] {}", Local::now().format("%H:%M:%S%.3f"), message);
                 let _ = file.flush();
             }
         }

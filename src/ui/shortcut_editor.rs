@@ -1,6 +1,8 @@
-use crate::config::{ConflictInfo, ConflictSeverity, KeyCode, RecordingShortcut};
-use egui::{Color32, FontId, Rect, Response, Sense, Stroke, Ui, Vec2};
 use std::time::Instant;
+
+use egui::{Color32, FontId, Rect, Response, Sense, Stroke, Ui, Vec2};
+
+use crate::config::{ConflictInfo, ConflictSeverity, KeyCode, RecordingShortcut};
 
 pub struct ShortcutEditor<'a> {
     shortcut: &'a mut RecordingShortcut,
@@ -25,7 +27,8 @@ impl<'a> ShortcutEditor<'a> {
         self.is_recording = is_recording;
         if is_recording && self.recording_start_time.is_none() {
             self.recording_start_time = Some(Instant::now());
-        } else if !is_recording {
+        }
+        else if !is_recording {
             self.recording_start_time = None;
         }
         self
@@ -57,7 +60,8 @@ impl<'a> ShortcutEditor<'a> {
             // Background
             let bg_color = if self.is_recording {
                 Color32::from_rgb(40, 40, 60)
-            } else {
+            }
+            else {
                 Color32::from_rgb(30, 30, 30)
             };
             painter.rect_filled(rect, 4.0, bg_color);
@@ -65,8 +69,7 @@ impl<'a> ShortcutEditor<'a> {
             // Border with pulsing animation when recording
             if self.is_recording {
                 // Request repaint after a delay for animation (60 FPS max)
-                ui.ctx()
-                    .request_repaint_after(std::time::Duration::from_millis(16));
+                ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
 
                 // Calculate pulse effect
                 let elapsed = self
@@ -96,7 +99,8 @@ impl<'a> ShortcutEditor<'a> {
                     );
                     painter.rect_filled(progress_rect, 0.0, Color32::from_rgb(100, 100, 200));
                 }
-            } else {
+            }
+            else {
                 let border_color = Color32::from_rgb(60, 60, 60);
                 painter.rect_stroke(
                     rect,
@@ -110,7 +114,8 @@ impl<'a> ShortcutEditor<'a> {
             let title_pos = rect.min + Vec2::new(10.0, 10.0);
             let title_text = if self.is_recording {
                 "Press your desired shortcut..."
-            } else {
+            }
+            else {
                 "Current Shortcut"
             };
             painter.text(
@@ -124,7 +129,8 @@ impl<'a> ShortcutEditor<'a> {
             // Display current or recorded shortcut
             let shortcut_text = if let Some(ref recorded) = self.recorded_shortcut {
                 format_shortcut(recorded)
-            } else {
+            }
+            else {
                 format_shortcut(self.shortcut)
             };
 
@@ -132,7 +138,8 @@ impl<'a> ShortcutEditor<'a> {
             let text_color = if self.is_recording && self.recorded_shortcut.is_some() {
                 // Highlight when a new shortcut is being pressed
                 Color32::from_rgb(150, 255, 150)
-            } else {
+            }
+            else {
                 Color32::from_rgb(255, 255, 255)
             };
 
@@ -160,7 +167,8 @@ impl<'a> ShortcutEditor<'a> {
             let instruction_pos = rect.max - Vec2::new(10.0, 30.0);
             let instruction_text = if self.is_recording {
                 "Press ESC or right-click to cancel"
-            } else {
+            }
+            else {
                 "Click to record new shortcut"
             };
             painter.text(
@@ -175,7 +183,8 @@ impl<'a> ShortcutEditor<'a> {
             let extra_instruction_pos = rect.max - Vec2::new(10.0, 10.0);
             let extra_text = if self.is_recording {
                 "Release keys to confirm shortcut"
-            } else {
+            }
+            else {
                 "Right-click to reset to Ctrl"
             };
             painter.text(
@@ -195,16 +204,19 @@ impl<'a> ShortcutEditor<'a> {
         // Determine action based on clicks
         let action = if response.clicked() && !self.is_recording {
             ShortcutEditorAction::StartRecording
-        } else if response.secondary_clicked() {
+        }
+        else if response.secondary_clicked() {
             if self.is_recording {
                 ShortcutEditorAction::CancelRecording
-            } else {
+            }
+            else {
                 // Reset to a safe default (Ctrl) while preserving the mode
                 self.shortcut.key = KeyCode::ControlLeft;
                 self.shortcut.modifiers.clear();
                 ShortcutEditorAction::Reset
             }
-        } else {
+        }
+        else {
             ShortcutEditorAction::None
         };
 
@@ -235,7 +247,8 @@ fn format_key(key: &KeyCode) -> String {
         KeyCode::MetaLeft | KeyCode::MetaRight => {
             if cfg!(target_os = "macos") {
                 "Cmd".to_string()
-            } else {
+            }
+            else {
                 "Win".to_string()
             }
         }
@@ -323,9 +336,7 @@ pub struct ShortcutBuilder<'a> {
 }
 
 impl<'a> ShortcutBuilder<'a> {
-    pub fn new(shortcut: &'a mut RecordingShortcut) -> Self {
-        Self { shortcut }
-    }
+    pub fn new(shortcut: &'a mut RecordingShortcut) -> Self { Self { shortcut } }
 
     pub fn show(&mut self, ui: &mut Ui) {
         ui.vertical(|ui| {
@@ -341,7 +352,8 @@ impl<'a> ShortcutBuilder<'a> {
                         if !self.shortcut.modifiers.contains(&KeyCode::ControlLeft) {
                             self.shortcut.modifiers.push(KeyCode::ControlLeft);
                         }
-                    } else {
+                    }
+                    else {
                         self.shortcut
                             .modifiers
                             .retain(|k| !matches!(k, KeyCode::ControlLeft | KeyCode::ControlRight));
@@ -354,7 +366,8 @@ impl<'a> ShortcutBuilder<'a> {
                         if !self.shortcut.modifiers.contains(&KeyCode::ShiftLeft) {
                             self.shortcut.modifiers.push(KeyCode::ShiftLeft);
                         }
-                    } else {
+                    }
+                    else {
                         self.shortcut
                             .modifiers
                             .retain(|k| !matches!(k, KeyCode::ShiftLeft | KeyCode::ShiftRight));
@@ -367,7 +380,8 @@ impl<'a> ShortcutBuilder<'a> {
                         if !self.shortcut.modifiers.contains(&KeyCode::Alt) {
                             self.shortcut.modifiers.push(KeyCode::Alt);
                         }
-                    } else {
+                    }
+                    else {
                         self.shortcut
                             .modifiers
                             .retain(|k| !matches!(k, KeyCode::Alt | KeyCode::AltGr));
@@ -381,20 +395,23 @@ impl<'a> ShortcutBuilder<'a> {
                             if !self.shortcut.modifiers.contains(&KeyCode::MetaLeft) {
                                 self.shortcut.modifiers.push(KeyCode::MetaLeft);
                             }
-                        } else {
+                        }
+                        else {
                             self.shortcut
                                 .modifiers
                                 .retain(|k| !matches!(k, KeyCode::MetaLeft | KeyCode::MetaRight));
                         }
                     }
-                } else {
+                }
+                else {
                     let mut has_win = self.shortcut.modifiers.contains(&KeyCode::MetaLeft);
                     if ui.checkbox(&mut has_win, "Win").changed() {
                         if has_win {
                             if !self.shortcut.modifiers.contains(&KeyCode::MetaLeft) {
                                 self.shortcut.modifiers.push(KeyCode::MetaLeft);
                             }
-                        } else {
+                        }
+                        else {
                             self.shortcut
                                 .modifiers
                                 .retain(|k| !matches!(k, KeyCode::MetaLeft | KeyCode::MetaRight));
@@ -430,10 +447,7 @@ impl<'a> ShortcutBuilder<'a> {
                     .selected_text(&current_key_str)
                     .show_ui(ui, |ui| {
                         for (label, key) in common_keys {
-                            if ui
-                                .selectable_value(&mut self.shortcut.key, key, label)
-                                .clicked()
-                            {
+                            if ui.selectable_value(&mut self.shortcut.key, key, label).clicked() {
                                 // Key was updated
                             }
                         }
@@ -449,9 +463,7 @@ pub struct ConflictDisplay<'a> {
 }
 
 impl<'a> ConflictDisplay<'a> {
-    pub fn new(conflicts: &'a [ConflictInfo]) -> Self {
-        Self { conflicts }
-    }
+    pub fn new(conflicts: &'a [ConflictInfo]) -> Self { Self { conflicts } }
 
     pub fn show(&self, ui: &mut Ui) {
         if self.conflicts.is_empty() {
