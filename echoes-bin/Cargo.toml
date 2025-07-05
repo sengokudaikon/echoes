@@ -1,0 +1,19 @@
+[package]
+name = "echoes-bin"
+version = "0.1.0"
+edition = "2024"
+authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
+description = "Binary for echoes dictation application"
+license = "MIT"
+
+[[bin]]
+name = "echoes"
+path = "src/main.rs"
+
+[dependencies]
+# Local workspace crates
+echoes-core = { path = "../echoes-core" }
+
+# Workspace dependencies
+tokio = { workspace = true }
+anyhow = { workspace = true }

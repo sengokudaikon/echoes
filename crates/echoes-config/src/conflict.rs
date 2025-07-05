@@ -1,8 +1,11 @@
 //! Shortcut conflict detection system
 
+use std::{
+    collections::HashMap,
+    sync::{LazyLock, Mutex},
+};
+
 use crate::shortcuts::{KeyCode, RecordingShortcut};
-use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
 
 /// Severity level for shortcut conflicts
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,6 +36,7 @@ trait ConflictDetector: Send + Sync {
     /// Check if the given shortcut conflicts with this detector's domain
     fn check(&self, shortcut: &RecordingShortcut) -> Option<ConflictInfo>;
     /// Get the name of this detector for debugging
+    #[allow(dead_code)]
     fn name(&self) -> &'static str;
 }
 
@@ -41,7 +45,8 @@ struct SystemConflictDetector {
     shortcuts: &'static HashMap<ShortcutPattern, &'static str>,
 }
 
-/// Application shortcut conflict detector that checks against common app shortcuts
+/// Application shortcut conflict detector that checks against common app
+/// shortcuts
 struct ApplicationConflictDetector {
     shortcuts: &'static HashMap<ShortcutPattern, ConflictInfo>,
 }
@@ -89,6 +94,7 @@ static MACOS_SYSTEM_SHORTCUTS: LazyLock<HashMap<ShortcutPattern, &'static str>> 
     map
 });
 
+#[allow(dead_code)]
 static WINDOWS_SYSTEM_SHORTCUTS: LazyLock<HashMap<ShortcutPattern, &'static str>> = LazyLock::new(|| {
     let mut map = HashMap::new();
 
@@ -229,6 +235,12 @@ impl ConflictDetector for AccessibilityDetector {
 
     fn name(&self) -> &'static str {
         "Accessibility"
+    }
+}
+
+impl Default for ConflictDetectionSystem {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

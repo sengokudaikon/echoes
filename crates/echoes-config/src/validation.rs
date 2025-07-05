@@ -1,7 +1,8 @@
 //! Shortcut validation logic
 
-use crate::shortcuts::{is_modifier_key, normalize_modifier, RecordingShortcut};
 use std::collections::HashSet;
+
+use crate::shortcuts::{is_modifier_key, normalize_modifier, RecordingShortcut};
 
 /// Validation error types
 #[derive(Debug, Clone, PartialEq)]

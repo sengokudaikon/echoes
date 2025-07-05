@@ -1,0 +1,26 @@
+[package]
+name = "echoes-platform"
+version = "0.1.0"
+edition = "2024"
+authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
+description = "Platform-specific functionality for echoes dictation application"
+license = "MIT"
+
+[dependencies]
+# Workspace dependencies
+serde = { workspace = true }
+directories = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# Platform-specific dependencies
+[target.'cfg(target_os = "macos")'.dependencies]
+mac-notification-sys = { workspace = true }
+core-foundation = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+notify-rust = { workspace = true }

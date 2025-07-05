@@ -2,6 +2,10 @@
 resolver = "2"
 members = [
     "crates/echoes-config",
+    "crates/echoes-platform",
+    "crates/echoes-audio",
+    "echoes-core",
+    "echoes-bin",
 ]
 
 [workspace.dependencies]

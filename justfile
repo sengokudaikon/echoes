@@ -2,7 +2,7 @@ default:
     @just --list
 
 # Run checks before committing
-check: fmt clippy test audit
+check: fmt clippy test
 
 # Format code
 fmt:

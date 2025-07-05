@@ -1,10 +1,11 @@
 //! Main configuration structures and management
 
-use crate::shortcuts::RecordingShortcut;
-use crate::{ConfigError, Result};
+use std::path::PathBuf;
+
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+
+use crate::{shortcuts::RecordingShortcut, ConfigError, Result};
 
 /// Main configuration structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
