@@ -1,8 +1,7 @@
 use std::sync::mpsc;
 
 use echoes_config::RecordingShortcut;
-
-use crate::keyboard::{KeyboardEvent, KeyboardListener};
+use echoes_keyboard::{KeyboardEvent, KeyboardListener};
 
 /// Manages keyboard events and listener
 pub struct KeyboardManager {

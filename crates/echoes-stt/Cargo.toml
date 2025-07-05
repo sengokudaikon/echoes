@@ -1,0 +1,28 @@
+[package]
+name = "echoes-stt"
+version = "0.1.0"
+edition = "2021"
+authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
+description = "Speech-to-text provider integrations for Echoes"
+license = "MIT"
+
+[dependencies]
+# Local workspace crates
+echoes-config = { path = "../echoes-config" }
+
+# Workspace dependencies
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+directories = { workspace = true }
+hound = { workspace = true }
+
+# STT-specific dependencies
+whisper-rs = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.8"

@@ -1,0 +1,25 @@
+[package]
+name = "echoes-keyboard"
+version = "0.1.0"
+edition = "2021"
+authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
+description = "Keyboard event handling and global hotkeys for Echoes"
+license = "MIT"
+
+[dependencies]
+# Local workspace crates
+echoes-config = { path = "../echoes-config" }
+echoes-platform = { path = "../echoes-platform" }
+
+# Workspace dependencies
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# Keyboard-specific dependencies
+rdev = { git = "https://github.com/fufesou/rdev" }
+enigo = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.8"

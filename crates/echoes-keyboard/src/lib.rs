@@ -1,15 +1,15 @@
 use std::{
-    sync::{Arc, Mutex, mpsc},
+    sync::{mpsc, Arc, Mutex},
     thread,
 };
 
 use anyhow::Result;
 use echoes_config::{KeyCode, RecordingShortcut, ShortcutMode};
-use rdev::{Event, EventType, listen};
+use rdev::{listen, Event, EventType};
 
-use crate::{log_debug, log_error};
+// Remove this line since we'll use tracing directly
 
-mod keys;
+pub mod keys;
 use keys::rdev_key_to_keycode;
 
 /// Trait for handling keyboard listener errors
@@ -24,7 +24,7 @@ struct ChannelErrorHandler {
 
 impl ErrorHandler for ChannelErrorHandler {
     fn handle_error(&self, error: &str) {
-        log_error!("Keyboard listener error: {}", error);
+        tracing::error!("Keyboard listener error: {}", error);
         let _ = self.sender.send(KeyboardEvent::ListenerError(error.to_string()));
     }
 }
@@ -70,7 +70,7 @@ impl KeyboardListener {
         if let Ok(mut state) = self.state.lock() {
             state.recording_shortcut = true;
             state.recorded_keys.clear();
-            log_debug!("Started recording shortcut");
+            tracing::debug!("Started recording shortcut");
         }
     }
 
@@ -79,26 +79,26 @@ impl KeyboardListener {
         if let Ok(mut state) = self.state.lock() {
             state.recording_shortcut = false;
             state.recorded_keys.clear();
-            log_debug!("Stopped recording shortcut");
+            tracing::debug!("Stopped recording shortcut");
         }
     }
 
     pub fn update_shortcut(&self, new_shortcut: RecordingShortcut) {
         if let Ok(mut shortcut) = self.shortcut.lock() {
             *shortcut = new_shortcut;
-            log_debug!("Updated shortcut: {:?}", shortcut);
+            tracing::debug!("Updated shortcut: {:?}", shortcut);
         }
     }
 
     pub fn start_listening(&self) -> Result<()> {
-        log_debug!("Starting keyboard listener thread");
+        tracing::debug!("Starting keyboard listener thread");
 
         let sender = self.sender.clone();
         let shortcut = self.shortcut.clone();
         let state = self.state.clone();
 
         thread::spawn(move || {
-            log_debug!("Keyboard listener thread started");
+            tracing::debug!("Keyboard listener thread started");
 
             let error_handler = ChannelErrorHandler { sender: sender.clone() };
 
@@ -106,7 +106,7 @@ impl KeyboardListener {
                 handle_event(event, &sender, &shortcut, &state);
             }) {
                 Ok(()) => {
-                    log_debug!("Keyboard listener exited normally");
+                    tracing::debug!("Keyboard listener exited normally");
                 }
                 Err(error) => {
                     error_handler.handle_error(&format!(
@@ -141,7 +141,7 @@ fn handle_event(
                     // Normal operation - track pressed keys
                     if !state.pressed_keys.contains(&keycode) {
                         state.pressed_keys.push(keycode);
-                        log_debug!("Key pressed: {:?}", keycode);
+                        tracing::debug!("Key pressed: {:?}", keycode);
                     }
 
                     // Check if shortcut is satisfied
@@ -178,7 +178,7 @@ fn handle_event(
                 if let Ok(mut state) = state.lock() {
                     // Normal operation - remove from pressed keys
                     state.pressed_keys.retain(|&k| k != keycode);
-                    log_debug!("Key released: {:?}", keycode);
+                    tracing::debug!("Key released: {:?}", keycode);
 
                     // For hold mode, check if shortcut is no longer active
                     if let Ok(shortcut) = shortcut.lock() {
@@ -202,11 +202,11 @@ fn handle_recording_event(event: Event, sender: &mpsc::Sender<KeyboardEvent>, st
         EventType::KeyPress(key) => {
             if let Some(keycode) = rdev_key_to_keycode(key) {
                 if let Ok(mut state) = state.lock() {
-                    log_debug!("Recording mode - key pressed: {:?}", keycode);
+                    tracing::debug!("Recording mode - key pressed: {:?}", keycode);
 
                     // Cancel on Escape
                     if keycode == KeyCode::Escape {
-                        log_debug!("Escape pressed, cancelling recording");
+                        tracing::debug!("Escape pressed, cancelling recording");
                         state.recording_shortcut = false;
                         state.recorded_keys.clear();
                         state.pressed_keys.clear();
@@ -222,7 +222,7 @@ fn handle_recording_event(event: Event, sender: &mpsc::Sender<KeyboardEvent>, st
                     // Add key to recorded keys if not already there
                     if !state.recorded_keys.contains(&keycode) {
                         state.recorded_keys.push(keycode);
-                        log_debug!("Recorded key: {:?}", keycode);
+                        tracing::debug!("Recorded key: {:?}", keycode);
                     }
                 }
             }
@@ -230,14 +230,14 @@ fn handle_recording_event(event: Event, sender: &mpsc::Sender<KeyboardEvent>, st
         EventType::KeyRelease(key) => {
             if let Some(keycode) = rdev_key_to_keycode(key) {
                 if let Ok(mut state) = state.lock() {
-                    log_debug!("Recording mode - key released: {:?}", keycode);
+                    tracing::debug!("Recording mode - key released: {:?}", keycode);
 
                     // Remove from pressed keys
                     state.pressed_keys.retain(|&k| k != keycode);
 
                     // When all keys are released, finalize the recording
                     if !state.recorded_keys.is_empty() && state.pressed_keys.is_empty() {
-                        log_debug!(
+                        tracing::debug!(
                             "All keys released, finalizing recording with keys: {:?}",
                             state.recorded_keys
                         );
@@ -250,7 +250,7 @@ fn handle_recording_event(event: Event, sender: &mpsc::Sender<KeyboardEvent>, st
                                 key: main_key,
                                 modifiers,
                             };
-                            log_debug!(
+                            tracing::debug!(
                                 "Created new shortcut: key={:?}, modifiers={:?}",
                                 main_key,
                                 &new_shortcut.modifiers
@@ -259,7 +259,7 @@ fn handle_recording_event(event: Event, sender: &mpsc::Sender<KeyboardEvent>, st
                             state.recorded_keys.clear();
                             let _ = sender.send(KeyboardEvent::ShortcutRecorded(new_shortcut));
                         } else {
-                            log_debug!("No main key found in recorded keys");
+                            tracing::debug!("No main key found in recorded keys");
                         }
                     }
                 }

@@ -2,9 +2,7 @@ use echoes_config::Config;
 use eframe::egui;
 
 pub mod error;
-pub mod keyboard;
 pub mod logging;
-pub mod stt;
 pub mod tracing_setup;
 pub mod ui;
 

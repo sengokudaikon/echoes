@@ -1,7 +1,7 @@
 // STT module with multiple provider implementations
 #![allow(dead_code)]
 
-mod whisper;
+pub mod whisper;
 
 use anyhow::Result;
 #[allow(unused_imports)]

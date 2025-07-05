@@ -4,6 +4,8 @@ members = [
     "crates/echoes-config",
     "crates/echoes-platform",
     "crates/echoes-audio",
+    "crates/echoes-keyboard",
+    "crates/echoes-stt",
     "echoes-core",
     "echoes-bin",
 ]

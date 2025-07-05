@@ -1,11 +1,11 @@
 use echoes_audio::AudioRecorder;
 use echoes_config::{Config, RecordingShortcut, ShortcutMode};
+use echoes_keyboard::KeyboardEvent;
 
 use super::{
     config_manager::ConfigManager, keyboard_manager::KeyboardManager, session_manager::SessionManager,
     shortcut_manager::ShortcutManager, shortcuts, system_manager::SystemManager,
 };
-use crate::keyboard::KeyboardEvent;
 
 /// Command trait for handling keyboard events
 trait KeyboardEventCommand {
