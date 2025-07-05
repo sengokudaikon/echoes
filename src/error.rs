@@ -1,9 +1,9 @@
 use std::error::Error as StdError;
 use std::fmt;
 
-/// Main error type for Whispers application
+/// Main error type for Echoes application
 #[derive(Debug)]
-pub enum WhispersError {
+pub enum EchoesError {
     /// Audio recording and processing errors
     Audio(AudioError),
     /// Configuration errors
@@ -90,21 +90,21 @@ pub enum UiError {
 }
 
 // Result type alias for convenience
-pub type Result<T> = std::result::Result<T, WhispersError>;
+pub type Result<T> = std::result::Result<T, EchoesError>;
 
 // Display implementations
-impl fmt::Display for WhispersError {
+impl fmt::Display for EchoesError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            WhispersError::Audio(e) => write!(f, "Audio error: {e}"),
-            WhispersError::Config(e) => write!(f, "Configuration error: {e}"),
-            WhispersError::Keyboard(e) => write!(f, "Keyboard error: {e}"),
-            WhispersError::Stt(e) => write!(f, "STT service error: {e}"),
-            WhispersError::Permission(e) => write!(f, "Permission error: {e}"),
-            WhispersError::Logging(e) => write!(f, "Logging error: {e}"),
-            WhispersError::Ui(e) => write!(f, "UI error: {e}"),
-            WhispersError::Io(e) => write!(f, "IO error: {e}"),
-            WhispersError::Other(msg) => write!(f, "Error: {msg}"),
+            EchoesError::Audio(e) => write!(f, "Audio error: {e}"),
+            EchoesError::Config(e) => write!(f, "Configuration error: {e}"),
+            EchoesError::Keyboard(e) => write!(f, "Keyboard error: {e}"),
+            EchoesError::Stt(e) => write!(f, "STT service error: {e}"),
+            EchoesError::Permission(e) => write!(f, "Permission error: {e}"),
+            EchoesError::Logging(e) => write!(f, "Logging error: {e}"),
+            EchoesError::Ui(e) => write!(f, "UI error: {e}"),
+            EchoesError::Io(e) => write!(f, "IO error: {e}"),
+            EchoesError::Other(msg) => write!(f, "Error: {msg}"),
         }
     }
 }
@@ -211,10 +211,10 @@ impl fmt::Display for UiError {
 }
 
 // StdError implementations
-impl StdError for WhispersError {
+impl StdError for EchoesError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
-            WhispersError::Io(e) => Some(e),
+            EchoesError::Io(e) => Some(e),
             _ => None,
         }
     }
@@ -229,51 +229,51 @@ impl StdError for LoggingError {}
 impl StdError for UiError {}
 
 // From implementations for easy conversion
-impl From<std::io::Error> for WhispersError {
+impl From<std::io::Error> for EchoesError {
     fn from(err: std::io::Error) -> Self {
-        WhispersError::Io(err)
+        EchoesError::Io(err)
     }
 }
 
-impl From<AudioError> for WhispersError {
+impl From<AudioError> for EchoesError {
     fn from(err: AudioError) -> Self {
-        WhispersError::Audio(err)
+        EchoesError::Audio(err)
     }
 }
 
-impl From<ConfigError> for WhispersError {
+impl From<ConfigError> for EchoesError {
     fn from(err: ConfigError) -> Self {
-        WhispersError::Config(err)
+        EchoesError::Config(err)
     }
 }
 
-impl From<KeyboardError> for WhispersError {
+impl From<KeyboardError> for EchoesError {
     fn from(err: KeyboardError) -> Self {
-        WhispersError::Keyboard(err)
+        EchoesError::Keyboard(err)
     }
 }
 
-impl From<SttError> for WhispersError {
+impl From<SttError> for EchoesError {
     fn from(err: SttError) -> Self {
-        WhispersError::Stt(err)
+        EchoesError::Stt(err)
     }
 }
 
-impl From<PermissionError> for WhispersError {
+impl From<PermissionError> for EchoesError {
     fn from(err: PermissionError) -> Self {
-        WhispersError::Permission(err)
+        EchoesError::Permission(err)
     }
 }
 
-impl From<LoggingError> for WhispersError {
+impl From<LoggingError> for EchoesError {
     fn from(err: LoggingError) -> Self {
-        WhispersError::Logging(err)
+        EchoesError::Logging(err)
     }
 }
 
-impl From<UiError> for WhispersError {
+impl From<UiError> for EchoesError {
     fn from(err: UiError) -> Self {
-        WhispersError::Ui(err)
+        EchoesError::Ui(err)
     }
 }
 

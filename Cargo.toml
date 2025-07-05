@@ -1,5 +1,5 @@
 [package]
-name = "whispers"
+name = "echoes"
 version = "0.1.0"
 edition = "2024"
 authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
@@ -16,7 +16,13 @@ tokio = { version = "1", features = ["full"] }
 
 # Audio
 cpal = "0.16.0"
-hound = "3.5"
+hound = "3.5"  # Still need for WAV encoding
+voice_activity_detector = "0.2.0"
+rubato = "0.15"  # For resampling audio
+ort-sys = { version = "=2.0.0-rc.9" }
+ort = { version = "=2.0.0-rc.9" }
+# Speech Recognition
+whisper-rs = "0.14"
 
 # HTTP and API clients
 reqwest = { version = "0.12", features = ["json", "multipart", "stream"] }

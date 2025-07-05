@@ -1,7 +1,11 @@
-// STT module stub for now
+// STT module with multiple provider implementations
 #![allow(dead_code)]
 
+mod whisper;
+
 use anyhow::Result;
+#[allow(unused_imports)]
+pub use whisper::LocalWhisperStt;
 
 pub trait SttProvider {
     fn transcribe(&self, audio_data: Vec<u8>) -> Result<String>;

@@ -11,7 +11,7 @@ static LOG_FILE: LazyLock<Mutex<Option<File>>> = LazyLock::new(|| Mutex::new(Non
 #[allow(dead_code)]
 pub fn init_logging() -> Result<()> {
     // Set up file logging
-    let log_path = PathBuf::from("whispers.log");
+    let log_path = PathBuf::from("echoes.log");
     let log_file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -23,7 +23,7 @@ pub fn init_logging() -> Result<()> {
     // Set up tracing subscriber for console output
     fmt()
         .with_env_filter(EnvFilter::from_default_env().add_directive(
-            "whispers=debug".parse().map_err(|e| {
+            "echoes=debug".parse().map_err(|e| {
                 LoggingError::FileCreationFailed(format!("Invalid log filter: {e}"))
             })?,
         ))
@@ -31,7 +31,7 @@ pub fn init_logging() -> Result<()> {
         .init();
 
     log_to_file(&format!(
-        "=== Whispers started at {} ===",
+        "=== echoes started at {} ===",
         Local::now().format("%Y-%m-%d %H:%M:%S")
     ));
 

@@ -11,10 +11,11 @@ mod tracing_setup;
 mod ui;
 
 use config::Config;
-use error::{Result, UiError, WhispersError};
+use error::{Result, UiError, EchoesError};
 use tracing_setup::{TracingConfig, init_tracing, setup_panic_handler};
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     // Set up panic handler
     setup_panic_handler();
 
@@ -22,9 +23,10 @@ fn main() -> Result<()> {
     let tracing_config = TracingConfig::default();
     init_tracing(tracing_config)?;
 
+
     // Load configuration
     let config =
-        Config::load().map_err(|e| WhispersError::Other(format!("Failed to load config: {e}")))?;
+        Config::load().map_err(|e| EchoesError::Other(format!("Failed to load config: {e}")))?;
 
     // Set up native options for the window
     let native_options = eframe::NativeOptions {

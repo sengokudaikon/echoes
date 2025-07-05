@@ -1,42 +1,41 @@
-# Whispers - Pure Rust Dictation App
+# echoes - Pure Rust Dictation App
 
-A fast, native dictation application written entirely in Rust, supporting multiple STT providers including local Lightning Whisper MLX.
+A fast, native dictation application written entirely in Rust, supporting multiple STT providers including local Whisper.
 
 ## Architecture
 
 ### Core Components
 
 1. **Keyboard Listener**
-   - Uses `rdev` for cross-platform keyboard event capture
-   - Detects Ctrl key hold/release for recording triggers
+    - Uses `rdev` for cross-platform keyboard event capture
+    - Detects Ctrl key hold/release for recording triggers
 
 2. **Audio Recorder**
-   - Uses `cpal` for cross-platform audio capture
-   - Records to WAV format in memory
-   - Configurable sample rate and channels
+    - Uses `cpal` for cross-platform audio capture
+    - Records to WAV format in memory
+    - Configurable sample rate and channels
 
 3. **STT Integration**
-   - **OpenAI Whisper**: HTTP client using `reqwest`
-   - **Groq**: HTTP client with custom prompt support
-   - **Lightning Whisper MLX**: Direct Python subprocess communication
-   - Trait-based design for easy provider addition
+    - **OpenAI Whisper**: HTTP client using `reqwest`
+    - TBD
+    - Trait-based design for easy provider addition
 
 4. **Text Output**
-   - Uses `enigo` for typing text into active application
-   - Cross-platform keyboard automation
+    - Uses `enigo` for typing text into active application
+    - Cross-platform keyboard automation
 
 5. **System Tray**
-   - Uses `tray-icon` for cross-platform system tray
-   - Simple menu for start/stop recording and settings
+    - Uses `tray-icon` for cross-platform system tray
+    - Simple menu for start/stop recording and settings
 
 6. **Configuration**
-   - TOML-based config using `serde` and `toml`
-   - Stores API keys, shortcuts, and preferences
-   - Platform-appropriate config locations
+    - TOML-based config using `serde` and `toml`
+    - Stores API keys, shortcuts, and preferences
+    - Platform-appropriate config locations
 
 7. **UI (Optional Phase 2)**
-   - Native UI using `egui` or `iced`
-   - Settings panel and recording history
+    - Native UI using `egui` or `iced`
+    - Settings panel and recording history
 
 ### Key Dependencies
 
@@ -66,7 +65,7 @@ tracing-subscriber = "0.3"
 ### Project Structure
 
 ```
-whispers/
+echoes/
 ├── src/
 │   ├── main.rs           # Entry point, CLI handling
 │   ├── keyboard.rs       # Keyboard event handling
@@ -89,8 +88,7 @@ whispers/
 - [x] Text output to active application
 - [ ] Audio recording
 - [ ] OpenAI Whisper integration
-- [ ] Groq integration
-- [ ] Lightning Whisper MLX integration
+- [ ] Local Whisper integration
 - [ ] System tray
 - [ ] Configuration management
 - [ ] Notifications
@@ -99,6 +97,9 @@ whispers/
 
 ### Platform Support
 
-- macOS: Full support including Lightning Whisper MLX
-- Windows: Full support except Lightning Whisper
-- Linux: Full support except Lightning Whisper
+- macOS: Full support
+- Windows: Full support
+- Linux: Full support
+- Android: TBD
+- iOS: TBD
+- Web: TBD

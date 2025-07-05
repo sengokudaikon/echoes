@@ -28,13 +28,13 @@ pub struct TracingConfig {
 impl Default for TracingConfig {
     fn default() -> Self {
         Self {
-            log_dir: directories::ProjectDirs::from("com", "whispers", "Whispers")
+            log_dir: directories::ProjectDirs::from("com", "echoes", "Echoes")
                 .map(|dirs| dirs.data_dir().to_path_buf())
                 .unwrap_or_else(|| PathBuf::from(".")),
-            app_name: "whispers".to_string(),
+            app_name: "echoes".to_string(),
             console_output: true,
             file_output: true,
-            log_level: "whispers=debug,warn".to_string(),
+            log_level: "echoes=debug,warn".to_string(),
             ansi_colors: true,
         }
     }

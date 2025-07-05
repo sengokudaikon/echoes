@@ -20,6 +20,9 @@ pub struct Config {
     #[cfg(target_os = "macos")]
     pub lightning_whisper: LightningWhisperConfig,
 
+    // Local Whisper settings (whisper-rs)
+    pub local_whisper: LocalWhisperConfig,
+
     // Recording settings
     pub recording_shortcut: RecordingShortcut,
 
@@ -31,6 +34,7 @@ pub struct Config {
 pub enum SttProvider {
     OpenAI,
     Groq,
+    LocalWhisper,
     #[cfg(target_os = "macos")]
     LightningWhisper,
 }
@@ -40,6 +44,27 @@ pub struct LightningWhisperConfig {
     pub model: String,
     pub batch_size: u32,
     pub quantization: Option<String>, // "4bit", "8bit", or None
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalWhisperConfig {
+    pub model: WhisperModel,
+    pub model_path: Option<PathBuf>, // Custom model path, if not using auto-download
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum WhisperModel {
+    Tiny,
+    TinyEn,
+    Base,
+    BaseEn,
+    Small,
+    SmallEn,
+    Medium,
+    MediumEn,
+    LargeV1,
+    LargeV2,
+    LargeV3,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -299,6 +324,10 @@ impl Default for Config {
                 batch_size: 12,
                 quantization: None,
             },
+            local_whisper: LocalWhisperConfig {
+                model: WhisperModel::Base,
+                model_path: None,
+            },
             recording_shortcut: RecordingShortcut {
                 mode: ShortcutMode::Hold,
                 key: KeyCode::ControlLeft,
@@ -372,14 +401,14 @@ impl Config {
                 ConfigError::SaveFailed(format!("Failed to write config file: {e}"))
             })?;
 
-            Ok::<(), crate::error::WhispersError>(())
+            Ok::<(), crate::error::EchoesError>(())
         })
         .await
         .map_err(|e| ConfigError::SaveFailed(format!("Task join error: {e}")))?
     }
 
     fn config_path() -> Result<PathBuf> {
-        let proj_dirs = ProjectDirs::from("com", "whispers", "whispers").ok_or_else(|| {
+        let proj_dirs = ProjectDirs::from("com", "echoes", "echoes").ok_or_else(|| {
             ConfigError::LoadFailed("Failed to determine config directory".to_string())
         })?;
 
