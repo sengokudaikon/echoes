@@ -2,12 +2,10 @@ use echoes_config::Config;
 use eframe::egui;
 
 pub mod error;
-pub mod logging;
-pub mod tracing_setup;
 pub mod ui;
 
+use echoes_logging::{TracingConfig, init_tracing, setup_panic_handler};
 use error::{EchoesError, Result, UiError};
-use tracing_setup::{TracingConfig, init_tracing, setup_panic_handler};
 
 pub async fn run() -> Result<()> {
     // Set up panic handler

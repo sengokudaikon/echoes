@@ -1,4 +1,4 @@
-use crate::log_debug;
+use echoes_logging::debug;
 
 /// Manages session state like recording status and logs
 pub struct SessionManager {
@@ -20,7 +20,7 @@ impl SessionManager {
 
     pub fn add_log(&mut self, msg: impl Into<String>) {
         let msg = msg.into();
-        log_debug!("{}", msg);
+        debug!("{}", msg);
         self.logs
             .push(format!("[{}] {}", chrono::Local::now().format("%H:%M:%S"), msg));
         // Keep only last 100 logs

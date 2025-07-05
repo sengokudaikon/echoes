@@ -17,6 +17,7 @@ echoes-platform = { path = "../crates/echoes-platform" }
 echoes-audio = { path = "../crates/echoes-audio" }
 echoes-keyboard = { path = "../crates/echoes-keyboard" }
 echoes-stt = { path = "../crates/echoes-stt" }
+echoes-logging = { path = "../crates/echoes-logging" }
 
 # Workspace dependencies
 enigo = { workspace = true }

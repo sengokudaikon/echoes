@@ -1,17 +1,17 @@
 use std::{
     path::PathBuf,
-    sync::{LazyLock, Mutex},
+    sync::{atomic::AtomicPtr, LazyLock},
 };
 
 use tracing::{Level, Subscriber};
 use tracing_appender::{non_blocking, rolling};
-use tracing_subscriber::{EnvFilter, Layer, fmt, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
-use crate::error::{LoggingError, Result};
+use crate::{error::LoggingError, Result};
 
-/// Global storage for the tracing guard to prevent memory leaks
-static TRACING_GUARD: LazyLock<Mutex<Option<tracing_appender::non_blocking::WorkerGuard>>> =
-    LazyLock::new(|| Mutex::new(None));
+/// Global atomic storage for the tracing guard to prevent memory leaks
+static TRACING_GUARD: LazyLock<AtomicPtr<tracing_appender::non_blocking::WorkerGuard>> =
+    LazyLock::new(|| AtomicPtr::new(std::ptr::null_mut()));
 
 /// Configuration for the tracing system
 pub struct TracingConfig {
@@ -49,12 +49,12 @@ pub fn init_tracing(config: TracingConfig) -> Result<()> {
     // Create log directory if it doesn't exist
     if config.file_output {
         std::fs::create_dir_all(&config.log_dir)
-            .map_err(|e| LoggingError::FileCreationFailed(format!("Failed to create log directory: {e}")))?;
+            .map_err(|e| LoggingError::FileCreationFailed(format!("Failed to create log directory: {e}")))?
     }
 
     // Set up environment filter
     let env_filter = EnvFilter::try_new(&config.log_level)
-        .map_err(|e| LoggingError::FileCreationFailed(format!("Invalid log filter: {e}")))?;
+        .map_err(|e| LoggingError::InvalidConfiguration(format!("Invalid log filter: {e}")))?;
 
     // Create the subscriber layers
     let mut layers = Vec::new();
@@ -90,11 +90,19 @@ pub fn init_tracing(config: TracingConfig) -> Result<()> {
         layers.push(file_layer);
 
         // Store the guard to keep the non-blocking writer alive
-        if let Ok(mut guard_storage) = TRACING_GUARD.lock() {
-            *guard_storage = Some(guard);
-        } else {
-            // Fallback if mutex is poisoned - still better than leaking
-            std::mem::forget(guard);
+        // Use atomic storage to avoid mutex poisoning issues
+        let guard_box = Box::new(guard);
+        let guard_ptr = Box::into_raw(guard_box);
+
+        // Store the pointer atomically
+        let old_ptr = TRACING_GUARD.swap(guard_ptr, std::sync::atomic::Ordering::AcqRel);
+
+        // Clean up any existing guard
+        if !old_ptr.is_null() {
+            unsafe {
+                let old_guard = Box::from_raw(old_ptr);
+                drop(old_guard);
+            }
         }
     }
 
@@ -107,7 +115,7 @@ pub fn init_tracing(config: TracingConfig) -> Result<()> {
         .with(layers)
         .with(error_layer)
         .try_init()
-        .map_err(|e| LoggingError::FileCreationFailed(format!("Failed to initialize tracing: {e}")))?;
+        .map_err(|e| LoggingError::TracingInitFailed(format!("Failed to initialize tracing: {e}")))?;
 
     tracing::info!(
         app_name = config.app_name,
@@ -121,8 +129,13 @@ pub fn init_tracing(config: TracingConfig) -> Result<()> {
 /// Cleanup tracing resources on shutdown
 #[allow(dead_code)]
 pub fn cleanup_tracing() {
-    if let Ok(mut guard_storage) = TRACING_GUARD.lock() {
-        if let Some(guard) = guard_storage.take() {
+    // Atomically take the guard pointer
+    let guard_ptr = TRACING_GUARD.swap(std::ptr::null_mut(), std::sync::atomic::Ordering::AcqRel);
+
+    // Clean up the guard if it exists
+    if !guard_ptr.is_null() {
+        unsafe {
+            let guard = Box::from_raw(guard_ptr);
             // Guard will be properly dropped here, flushing any remaining logs
             drop(guard);
         }
@@ -211,7 +224,7 @@ impl ErrorReport {
 #[macro_export]
 macro_rules! log_error_structured {
     ($error:expr) => {{
-        let report = $crate::tracing_setup::ErrorReport::new(&$error);
+        let report = $crate::ErrorReport::new(&$error);
         tracing::error!(
             error_type = %report.error_type,
             error_message = %report.message,
@@ -221,7 +234,7 @@ macro_rules! log_error_structured {
         report
     }};
     ($error:expr, $($field:tt)*) => {{
-        let report = $crate::tracing_setup::ErrorReport::new(&$error);
+        let report = $crate::ErrorReport::new(&$error);
         tracing::error!(
             error_type = %report.error_type,
             error_message = %report.message,

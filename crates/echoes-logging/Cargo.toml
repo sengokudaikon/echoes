@@ -1,0 +1,16 @@
+[package]
+name = "echoes-logging"
+version = "0.1.0"
+edition = "2021"
+authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
+description = "Logging and tracing utilities for Echoes"
+license = "MIT"
+
+[dependencies]
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
+thiserror = { workspace = true }
+directories = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }

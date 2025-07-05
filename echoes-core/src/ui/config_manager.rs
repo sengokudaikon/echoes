@@ -1,6 +1,7 @@
 use std::sync::mpsc;
 
 use echoes_config::Config;
+use echoes_logging::error;
 use tokio::task;
 
 use crate::error::Result;
@@ -18,7 +19,7 @@ impl ConfigManager {
         task::spawn(async move {
             while let Ok(config) = save_rx.recv() {
                 if let Err(e) = config.save_async().await {
-                    tracing::error!("Failed to save config: {e}");
+                    error!("Failed to save config: {e}");
                 }
             }
         });
@@ -29,7 +30,7 @@ impl ConfigManager {
     /// Queue a config save operation (non-blocking)
     pub fn save_async(&self, config: Config) {
         if let Err(e) = self.save_tx.send(config) {
-            tracing::error!("Failed to queue config save: {e}");
+            error!("Failed to queue config save: {e}");
         }
     }
 

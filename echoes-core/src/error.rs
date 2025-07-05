@@ -268,6 +268,12 @@ impl From<LoggingError> for EchoesError {
     }
 }
 
+impl From<echoes_logging::LoggingError> for EchoesError {
+    fn from(err: echoes_logging::LoggingError) -> Self {
+        EchoesError::Other(err.to_string())
+    }
+}
+
 impl From<UiError> for EchoesError {
     fn from(err: UiError) -> Self {
         EchoesError::Ui(err)
