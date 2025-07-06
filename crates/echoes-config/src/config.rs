@@ -21,6 +21,12 @@ pub struct Config {
     pub openai_base_url: Option<String>,
     pub groq_base_url: Option<String>,
 
+    // STT Provider specific settings
+    pub openai_stt_model: Option<String>,
+    pub openai_stt_prompt: Option<String>,
+    pub groq_stt_model: Option<String>,
+    pub groq_stt_prompt: Option<String>,
+
     // Lightning Whisper settings (Mac only)
     #[cfg(target_os = "macos")]
     pub lightning_whisper: LightningWhisperConfig,
@@ -101,6 +107,10 @@ impl Default for Config {
             groq_api_key: None,
             openai_base_url: Some("https://api.openai.com/v1".into()),
             groq_base_url: Some("https://api.groq.com/openai/v1".into()),
+            openai_stt_model: Some("whisper-1".into()),
+            openai_stt_prompt: None,
+            groq_stt_model: Some("whisper-large-v3".into()),
+            groq_stt_prompt: None,
             #[cfg(target_os = "macos")]
             lightning_whisper: LightningWhisperConfig {
                 model: "distil-medium.en".into(),

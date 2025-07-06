@@ -23,6 +23,7 @@ hound = { workspace = true }
 
 # STT-specific dependencies
 whisper-rs = { workspace = true }
+tokio-util = "0.7"
 
 [dev-dependencies]
 tempfile = "3.8"

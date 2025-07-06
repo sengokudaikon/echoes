@@ -90,3 +90,140 @@ pub fn render_api_keys_config(ui: &mut egui::Ui, config: &mut Config, mut on_cha
 
     changed
 }
+
+/// Renders the STT provider-specific configuration UI
+pub fn render_stt_provider_settings(ui: &mut egui::Ui, config: &mut Config, mut on_change: impl FnMut(&str)) -> bool {
+    let mut changed = false;
+
+    ui.group(|ui| {
+        ui.label("STT Provider Settings:");
+
+        match config.stt_provider {
+            SttProvider::OpenAI => {
+                ui.horizontal(|ui| {
+                    ui.label("Base URL:");
+                    let mut temp_url = String::new();
+                    let url_to_edit = match &mut config.openai_base_url {
+                        Some(url) => url,
+                        None => &mut temp_url,
+                    };
+
+                    if ui.text_edit_singleline(url_to_edit).changed() {
+                        if url_to_edit.is_empty() {
+                            config.openai_base_url = None;
+                        } else if config.openai_base_url.is_none() {
+                            config.openai_base_url = Some(temp_url);
+                        }
+                        on_change("Updated OpenAI base URL");
+                        changed = true;
+                    }
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Model:");
+                    let mut temp_model = String::new();
+                    let model_to_edit = match &mut config.openai_stt_model {
+                        Some(model) => model,
+                        None => &mut temp_model,
+                    };
+
+                    if ui.text_edit_singleline(model_to_edit).changed() {
+                        if model_to_edit.is_empty() {
+                            config.openai_stt_model = None;
+                        } else if config.openai_stt_model.is_none() {
+                            config.openai_stt_model = Some(temp_model);
+                        }
+                        on_change("Updated OpenAI STT model");
+                        changed = true;
+                    }
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Prompt:");
+                    let mut temp_prompt = String::new();
+                    let prompt_to_edit = match &mut config.openai_stt_prompt {
+                        Some(prompt) => prompt,
+                        None => &mut temp_prompt,
+                    };
+
+                    if ui.text_edit_multiline(prompt_to_edit).changed() {
+                        if prompt_to_edit.is_empty() {
+                            config.openai_stt_prompt = None;
+                        } else if config.openai_stt_prompt.is_none() {
+                            config.openai_stt_prompt = Some(temp_prompt);
+                        }
+                        on_change("Updated OpenAI STT prompt");
+                        changed = true;
+                    }
+                });
+            }
+            SttProvider::Groq => {
+                ui.horizontal(|ui| {
+                    ui.label("Base URL:");
+                    let mut temp_url = String::new();
+                    let url_to_edit = match &mut config.groq_base_url {
+                        Some(url) => url,
+                        None => &mut temp_url,
+                    };
+
+                    if ui.text_edit_singleline(url_to_edit).changed() {
+                        if url_to_edit.is_empty() {
+                            config.groq_base_url = None;
+                        } else if config.groq_base_url.is_none() {
+                            config.groq_base_url = Some(temp_url);
+                        }
+                        on_change("Updated Groq base URL");
+                        changed = true;
+                    }
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Model:");
+                    let mut temp_model = String::new();
+                    let model_to_edit = match &mut config.groq_stt_model {
+                        Some(model) => model,
+                        None => &mut temp_model,
+                    };
+
+                    if ui.text_edit_singleline(model_to_edit).changed() {
+                        if model_to_edit.is_empty() {
+                            config.groq_stt_model = None;
+                        } else if config.groq_stt_model.is_none() {
+                            config.groq_stt_model = Some(temp_model);
+                        }
+                        on_change("Updated Groq STT model");
+                        changed = true;
+                    }
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Prompt:");
+                    let mut temp_prompt = String::new();
+                    let prompt_to_edit = match &mut config.groq_stt_prompt {
+                        Some(prompt) => prompt,
+                        None => &mut temp_prompt,
+                    };
+
+                    if ui.text_edit_multiline(prompt_to_edit).changed() {
+                        if prompt_to_edit.is_empty() {
+                            config.groq_stt_prompt = None;
+                        } else if config.groq_stt_prompt.is_none() {
+                            config.groq_stt_prompt = Some(temp_prompt);
+                        }
+                        on_change("Updated Groq STT prompt");
+                        changed = true;
+                    }
+                });
+            }
+            SttProvider::LocalWhisper => {
+                ui.label("Local Whisper settings will be added here");
+            }
+            #[cfg(target_os = "macos")]
+            SttProvider::LightningWhisper => {
+                ui.label("Lightning Whisper settings will be added here");
+            }
+        }
+    });
+
+    changed
+}

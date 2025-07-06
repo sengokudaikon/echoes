@@ -63,7 +63,7 @@ impl LocalWhisperStt {
 }
 
 impl SttProvider for LocalWhisperStt {
-    fn transcribe(&self, audio_data: Vec<u8>) -> Result<String> {
+    async fn transcribe(&self, audio_data: Vec<u8>) -> Result<String> {
         // whisper-rs expects 16-bit PCM mono audio at 16kHz
         // The audio_data should already be in WAV format from our recording module
 
