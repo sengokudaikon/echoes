@@ -50,141 +50,171 @@ pub enum ShortcutEditorAction {
 
 #[allow(clippy::elidable_lifetime_names)]
 impl<'a> ShortcutEditor<'a> {
-    #[allow(clippy::too_many_lines)]
-    pub fn show(self, ui: &mut Ui) -> (Response, ShortcutEditorAction) {
+    pub fn show(mut self, ui: &mut Ui) -> (Response, ShortcutEditorAction) {
         let desired_size = Vec2::new(ui.available_width(), 120.0);
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
 
         if ui.is_rect_visible(rect) {
-            let painter = ui.painter();
-
-            let bg_color = if self.is_recording {
-                Color32::from_rgb(40, 40, 60)
-            } else {
-                Color32::from_rgb(30, 30, 30)
-            };
-            painter.rect_filled(rect, 4.0, bg_color);
-
             if self.is_recording {
                 ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
-
-                let elapsed = self
-                    .recording_start_time
-                    .map_or(0.0, |start| start.elapsed().as_secs_f32());
-                let pulse = f32::midpoint((elapsed * 3.0).sin(), 1.0);
-                let border_width = pulse.mul_add(2.0, 1.0);
-                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                let border_color = Color32::from_rgb(
-                    100 + (pulse * 50.0).clamp(0.0, 155.0) as u8,
-                    100 + (pulse * 50.0).clamp(0.0, 155.0) as u8,
-                    200 + (pulse * 55.0).clamp(0.0, 55.0) as u8,
-                );
-                painter.rect_stroke(
-                    rect,
-                    4.0,
-                    Stroke::new(border_width, border_color),
-                    egui::epaint::StrokeKind::Middle,
-                );
-
-                // Add timeout progress bar
-                if elapsed < self.recording_timeout {
-                    let progress = 1.0 - (elapsed / self.recording_timeout);
-                    let progress_rect = Rect::from_min_size(
-                        rect.min + Vec2::new(0.0, rect.height() - 4.0),
-                        Vec2::new(rect.width() * progress, 4.0),
-                    );
-                    painter.rect_filled(progress_rect, 0.0, Color32::from_rgb(100, 100, 200));
-                }
-            } else {
-                let border_color = Color32::from_rgb(60, 60, 60);
-                painter.rect_stroke(
-                    rect,
-                    4.0,
-                    Stroke::new(1.0, border_color),
-                    egui::epaint::StrokeKind::Middle,
-                );
             }
 
-            let title_pos = rect.min + Vec2::new(10.0, 10.0);
-            let title_text = if self.is_recording {
-                "Press your desired shortcut..."
-            } else {
-                "Current Shortcut"
-            };
-            painter.text(
-                title_pos,
-                egui::Align2::LEFT_TOP,
-                title_text,
-                FontId::proportional(14.0),
-                Color32::from_rgb(200, 200, 200),
+            let painter = ui.painter();
+            self.draw_background(painter, rect);
+            self.draw_text_content(painter, rect);
+            self.draw_border_and_effects(painter, rect);
+        }
+
+        if let Some(ref recorded) = self.recorded_shortcut {
+            *self.shortcut = recorded.clone();
+        }
+
+        let action = self.handle_user_actions(&response);
+        (response, action)
+    }
+
+    fn draw_background(&self, painter: &egui::Painter, rect: Rect) {
+        let bg_color = if self.is_recording {
+            Color32::from_rgb(40, 40, 60)
+        } else {
+            Color32::from_rgb(30, 30, 30)
+        };
+        painter.rect_filled(rect, 4.0, bg_color);
+    }
+
+    fn draw_border_and_effects(&self, painter: &egui::Painter, rect: Rect) {
+        if self.is_recording {
+            let elapsed = self
+                .recording_start_time
+                .map_or(0.0, |start| start.elapsed().as_secs_f32());
+            let pulse = f32::midpoint((elapsed * 3.0).sin(), 1.0);
+            let border_width = pulse.mul_add(2.0, 1.0);
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let border_color = Color32::from_rgb(
+                100 + (pulse * 50.0).clamp(0.0, 155.0) as u8,
+                100 + (pulse * 50.0).clamp(0.0, 155.0) as u8,
+                200 + (pulse * 55.0).clamp(0.0, 55.0) as u8,
+            );
+            painter.rect_stroke(
+                rect,
+                4.0,
+                Stroke::new(border_width, border_color),
+                egui::epaint::StrokeKind::Middle,
             );
 
-            let shortcut_text = if let Some(ref recorded) = self.recorded_shortcut {
-                format_shortcut(recorded)
-            } else {
-                format_shortcut(self.shortcut)
-            };
+            self.draw_timeout_progress_bar(painter, rect, elapsed);
+        } else {
+            let border_color = Color32::from_rgb(60, 60, 60);
+            painter.rect_stroke(
+                rect,
+                4.0,
+                Stroke::new(1.0, border_color),
+                egui::epaint::StrokeKind::Middle,
+            );
+        }
+    }
 
-            let shortcut_pos = rect.center() - Vec2::new(0.0, 10.0);
-            let text_color = if self.is_recording && self.recorded_shortcut.is_some() {
-                Color32::from_rgb(150, 255, 150)
-            } else {
-                Color32::from_rgb(255, 255, 255)
-            };
+    fn draw_timeout_progress_bar(&self, painter: &egui::Painter, rect: Rect, elapsed: f32) {
+        if elapsed < self.recording_timeout {
+            let progress = 1.0 - (elapsed / self.recording_timeout);
+            let progress_rect = Rect::from_min_size(
+                rect.min + Vec2::new(0.0, rect.height() - 4.0),
+                Vec2::new(rect.width() * progress, 4.0),
+            );
+            painter.rect_filled(progress_rect, 0.0, Color32::from_rgb(100, 100, 200));
+        }
+    }
 
+    fn draw_text_content(&self, painter: &egui::Painter, rect: Rect) {
+        self.draw_title_text(painter, rect);
+        self.draw_shortcut_text(painter, rect);
+        self.draw_hint_text(painter, rect);
+        self.draw_instruction_text(painter, rect);
+    }
+
+    fn draw_title_text(&self, painter: &egui::Painter, rect: Rect) {
+        let title_pos = rect.min + Vec2::new(10.0, 10.0);
+        let title_text = if self.is_recording {
+            "Press your desired shortcut..."
+        } else {
+            "Current Shortcut"
+        };
+        painter.text(
+            title_pos,
+            egui::Align2::LEFT_TOP,
+            title_text,
+            FontId::proportional(14.0),
+            Color32::from_rgb(200, 200, 200),
+        );
+    }
+
+    fn draw_shortcut_text(&self, painter: &egui::Painter, rect: Rect) {
+        let shortcut_text = self
+            .recorded_shortcut
+            .as_ref()
+            .map_or_else(|| format_shortcut(self.shortcut), format_shortcut);
+
+        let shortcut_pos = rect.center() - Vec2::new(0.0, 10.0);
+        let text_color = if self.is_recording && self.recorded_shortcut.is_some() {
+            Color32::from_rgb(150, 255, 150)
+        } else {
+            Color32::from_rgb(255, 255, 255)
+        };
+
+        painter.text(
+            shortcut_pos,
+            egui::Align2::CENTER_CENTER,
+            &shortcut_text,
+            FontId::proportional(24.0),
+            text_color,
+        );
+    }
+
+    fn draw_hint_text(&self, painter: &egui::Painter, rect: Rect) {
+        if self.is_recording && self.recorded_shortcut.is_some() {
+            let keys_hint_pos = rect.center() + Vec2::new(0.0, 20.0);
             painter.text(
-                shortcut_pos,
+                keys_hint_pos,
                 egui::Align2::CENTER_CENTER,
-                &shortcut_text,
-                FontId::proportional(24.0),
-                text_color,
-            );
-
-            if self.is_recording && self.recorded_shortcut.is_some() {
-                let keys_hint_pos = rect.center() + Vec2::new(0.0, 20.0);
-                painter.text(
-                    keys_hint_pos,
-                    egui::Align2::CENTER_CENTER,
-                    "Release all keys to set this shortcut",
-                    FontId::proportional(12.0),
-                    Color32::from_rgb(180, 180, 180),
-                );
-            }
-
-            let instruction_pos = rect.max - Vec2::new(10.0, 30.0);
-            let instruction_text = if self.is_recording {
-                "Press ESC or right-click to cancel"
-            } else {
-                "Click to record new shortcut"
-            };
-            painter.text(
-                instruction_pos,
-                egui::Align2::RIGHT_BOTTOM,
-                instruction_text,
+                "Release all keys to set this shortcut",
                 FontId::proportional(12.0),
-                Color32::from_rgb(150, 150, 150),
-            );
-
-            let extra_instruction_pos = rect.max - Vec2::new(10.0, 10.0);
-            let extra_text = if self.is_recording {
-                "Release keys to confirm shortcut"
-            } else {
-                "Right-click to reset to Ctrl"
-            };
-            painter.text(
-                extra_instruction_pos,
-                egui::Align2::RIGHT_BOTTOM,
-                extra_text,
-                FontId::proportional(10.0),
-                Color32::from_rgb(120, 120, 120),
+                Color32::from_rgb(180, 180, 180),
             );
         }
+    }
 
-        if let Some(recorded) = self.recorded_shortcut {
-            *self.shortcut = recorded;
-        }
+    fn draw_instruction_text(&self, painter: &egui::Painter, rect: Rect) {
+        let instruction_pos = rect.max - Vec2::new(10.0, 30.0);
+        let instruction_text = if self.is_recording {
+            "Press ESC or right-click to cancel"
+        } else {
+            "Click to record new shortcut"
+        };
+        painter.text(
+            instruction_pos,
+            egui::Align2::RIGHT_BOTTOM,
+            instruction_text,
+            FontId::proportional(12.0),
+            Color32::from_rgb(150, 150, 150),
+        );
 
-        let action = if response.clicked() && !self.is_recording {
+        let extra_instruction_pos = rect.max - Vec2::new(10.0, 10.0);
+        let extra_text = if self.is_recording {
+            "Release keys to confirm shortcut"
+        } else {
+            "Right-click to reset to Ctrl"
+        };
+        painter.text(
+            extra_instruction_pos,
+            egui::Align2::RIGHT_BOTTOM,
+            extra_text,
+            FontId::proportional(10.0),
+            Color32::from_rgb(120, 120, 120),
+        );
+    }
+
+    fn handle_user_actions(&mut self, response: &Response) -> ShortcutEditorAction {
+        if response.clicked() && !self.is_recording {
             ShortcutEditorAction::StartRecording
         } else if response.secondary_clicked() {
             if self.is_recording {
@@ -196,9 +226,7 @@ impl<'a> ShortcutEditor<'a> {
             }
         } else {
             ShortcutEditorAction::None
-        };
-
-        (response, action)
+        }
     }
 }
 
@@ -314,112 +342,83 @@ impl<'a> ShortcutBuilder<'a> {
         Self { shortcut }
     }
 
-    #[allow(clippy::too_many_lines)]
     pub fn show(&mut self, ui: &mut Ui) {
         ui.vertical(|ui| {
             ui.label("Build shortcut visually:");
+            self.draw_modifier_checkboxes(ui);
+            self.draw_main_key_selection(ui);
+        });
+    }
 
-            ui.horizontal(|ui| {
-                ui.label("Modifiers:");
+    fn draw_modifier_checkboxes(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Modifiers:");
 
-                let mut has_ctrl = self.shortcut.modifiers.contains(&KeyCode::ControlLeft);
-                if ui.checkbox(&mut has_ctrl, "Ctrl").changed() {
-                    if has_ctrl {
-                        if !self.shortcut.modifiers.contains(&KeyCode::ControlLeft) {
-                            self.shortcut.modifiers.push(KeyCode::ControlLeft);
-                        }
-                    } else {
-                        self.shortcut
-                            .modifiers
-                            .retain(|k| !matches!(k, KeyCode::ControlLeft | KeyCode::ControlRight));
-                    }
+            self.modifier_checkbox(
+                ui,
+                "Ctrl",
+                KeyCode::ControlLeft,
+                &[KeyCode::ControlLeft, KeyCode::ControlRight],
+            );
+            self.modifier_checkbox(
+                ui,
+                "Shift",
+                KeyCode::ShiftLeft,
+                &[KeyCode::ShiftLeft, KeyCode::ShiftRight],
+            );
+            self.modifier_checkbox(ui, "Alt", KeyCode::Alt, &[KeyCode::Alt, KeyCode::AltGr]);
+
+            if cfg!(target_os = "macos") {
+                self.modifier_checkbox(ui, "Cmd", KeyCode::MetaLeft, &[KeyCode::MetaLeft, KeyCode::MetaRight]);
+            } else {
+                self.modifier_checkbox(ui, "Win", KeyCode::MetaLeft, &[KeyCode::MetaLeft, KeyCode::MetaRight]);
+            }
+        });
+    }
+
+    fn modifier_checkbox(&mut self, ui: &mut Ui, label: &str, primary_key: KeyCode, all_variants: &[KeyCode]) {
+        let mut has_modifier = self.shortcut.modifiers.contains(&primary_key);
+        if ui.checkbox(&mut has_modifier, label).changed() {
+            if has_modifier {
+                if !self.shortcut.modifiers.contains(&primary_key) {
+                    self.shortcut.modifiers.push(primary_key);
                 }
+            } else {
+                self.shortcut.modifiers.retain(|k| !all_variants.contains(k));
+            }
+        }
+    }
 
-                let mut has_shift = self.shortcut.modifiers.contains(&KeyCode::ShiftLeft);
-                if ui.checkbox(&mut has_shift, "Shift").changed() {
-                    if has_shift {
-                        if !self.shortcut.modifiers.contains(&KeyCode::ShiftLeft) {
-                            self.shortcut.modifiers.push(KeyCode::ShiftLeft);
-                        }
-                    } else {
-                        self.shortcut
-                            .modifiers
-                            .retain(|k| !matches!(k, KeyCode::ShiftLeft | KeyCode::ShiftRight));
+    fn draw_main_key_selection(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Main key:");
+
+            let common_keys = vec![
+                ("Space", KeyCode::Space),
+                ("Enter", KeyCode::Return),
+                ("Tab", KeyCode::Tab),
+                ("Escape", KeyCode::Escape),
+                ("/", KeyCode::Slash),
+                (".", KeyCode::Dot),
+                (",", KeyCode::Comma),
+                ("A", KeyCode::A),
+                ("S", KeyCode::S),
+                ("D", KeyCode::D),
+                ("F", KeyCode::F),
+                ("R", KeyCode::R),
+                ("X", KeyCode::X),
+                ("C", KeyCode::C),
+                ("V", KeyCode::V),
+            ];
+
+            let current_key_str = format_key(self.shortcut.key);
+            egui::ComboBox::from_label("")
+                .selected_text(&current_key_str)
+                .show_ui(ui, |ui| {
+                    for (label, key) in common_keys {
+                        ui.selectable_value(&mut self.shortcut.key, key, label);
                     }
-                }
-
-                let mut has_alt = self.shortcut.modifiers.contains(&KeyCode::Alt);
-                if ui.checkbox(&mut has_alt, "Alt").changed() {
-                    if has_alt {
-                        if !self.shortcut.modifiers.contains(&KeyCode::Alt) {
-                            self.shortcut.modifiers.push(KeyCode::Alt);
-                        }
-                    } else {
-                        self.shortcut
-                            .modifiers
-                            .retain(|k| !matches!(k, KeyCode::Alt | KeyCode::AltGr));
-                    }
-                }
-
-                if cfg!(target_os = "macos") {
-                    let mut has_cmd = self.shortcut.modifiers.contains(&KeyCode::MetaLeft);
-                    if ui.checkbox(&mut has_cmd, "Cmd").changed() {
-                        if has_cmd {
-                            if !self.shortcut.modifiers.contains(&KeyCode::MetaLeft) {
-                                self.shortcut.modifiers.push(KeyCode::MetaLeft);
-                            }
-                        } else {
-                            self.shortcut
-                                .modifiers
-                                .retain(|k| !matches!(k, KeyCode::MetaLeft | KeyCode::MetaRight));
-                        }
-                    }
-                } else {
-                    let mut has_win = self.shortcut.modifiers.contains(&KeyCode::MetaLeft);
-                    if ui.checkbox(&mut has_win, "Win").changed() {
-                        if has_win {
-                            if !self.shortcut.modifiers.contains(&KeyCode::MetaLeft) {
-                                self.shortcut.modifiers.push(KeyCode::MetaLeft);
-                            }
-                        } else {
-                            self.shortcut
-                                .modifiers
-                                .retain(|k| !matches!(k, KeyCode::MetaLeft | KeyCode::MetaRight));
-                        }
-                    }
-                }
-            });
-
-            ui.horizontal(|ui| {
-                ui.label("Main key:");
-
-                let common_keys = vec![
-                    ("Space", KeyCode::Space),
-                    ("Enter", KeyCode::Return),
-                    ("Tab", KeyCode::Tab),
-                    ("Escape", KeyCode::Escape),
-                    ("/", KeyCode::Slash),
-                    (".", KeyCode::Dot),
-                    (",", KeyCode::Comma),
-                    ("A", KeyCode::A),
-                    ("S", KeyCode::S),
-                    ("D", KeyCode::D),
-                    ("F", KeyCode::F),
-                    ("R", KeyCode::R),
-                    ("X", KeyCode::X),
-                    ("C", KeyCode::C),
-                    ("V", KeyCode::V),
-                ];
-
-                let current_key_str = format_key(self.shortcut.key);
-                egui::ComboBox::from_label("")
-                    .selected_text(&current_key_str)
-                    .show_ui(ui, |ui| {
-                        for (label, key) in common_keys {
-                            if ui.selectable_value(&mut self.shortcut.key, key, label).clicked() {}
-                        }
-                    });
-            });
+                });
         });
     }
 }
