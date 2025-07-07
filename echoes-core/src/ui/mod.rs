@@ -130,12 +130,12 @@ impl WhispoApp {
 
         ui.add_space(10.0);
 
-        // API Keys config
-        let mut api_message = None;
-        if self::config::render_api_keys_config(ui, &mut self.state.config, |msg| {
-            api_message = Some(msg.to_string());
+        // STT Provider-specific settings
+        let mut provider_message = None;
+        if self::config::render_stt_provider_settings(ui, &mut self.state.config, |msg| {
+            provider_message = Some(msg.to_string());
         }) {
-            if let Some(msg) = api_message {
+            if let Some(msg) = provider_message {
                 self.state.add_log(msg);
             }
             self.state.config_manager.save_async(self.state.config.clone());

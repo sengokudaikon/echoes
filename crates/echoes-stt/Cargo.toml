@@ -5,6 +5,10 @@ edition = "2021"
 authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
 description = "Speech-to-text provider integrations for Echoes"
 license = "MIT"
+repository = "https://github.com/sengokudaikon/echoes"
+readme = "../README.md"
+keywords = ["speech", "transcription", "whisper", "openai"]
+categories = ["api-bindings", "accessibility"]
 
 [dependencies]
 # Local workspace crates

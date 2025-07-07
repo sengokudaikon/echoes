@@ -92,7 +92,7 @@ impl VadProcessor {
                         // Only keep segments longer than minimum duration
                         if self.current_segment.len() >= self.min_speech_samples {
                             // Trim trailing silence
-                            let segment = Self::trim_silence_static(self.current_segment.clone());
+                            let segment = Self::trim_silence_static(&self.current_segment);
                             if !segment.is_empty() {
                                 speech_segments.push(segment);
                             }
@@ -117,17 +117,18 @@ impl VadProcessor {
     }
 
     /// Get any remaining speech segment (call when recording stops)
+    #[must_use]
     pub fn finish(self) -> Option<Vec<f32>> {
         if self.is_speaking && self.current_segment.len() >= self.min_speech_samples {
             let segment = self.current_segment;
-            Some(Self::trim_silence_static(segment))
+            Some(Self::trim_silence_static(&segment))
         } else {
             None
         }
     }
 
     /// Trim silence from the beginning and end of a segment (static version)
-    fn trim_silence_static(segment: Vec<f32>) -> Vec<f32> {
+    fn trim_silence_static(segment: &[f32]) -> Vec<f32> {
         const SILENCE_THRESHOLD: f32 = 0.01;
 
         // Trim from beginning
@@ -137,8 +138,7 @@ impl VadProcessor {
         let end = segment
             .iter()
             .rposition(|&s| s.abs() > SILENCE_THRESHOLD)
-            .map(|pos| pos + 1)
-            .unwrap_or(segment.len());
+            .map_or(segment.len(), |pos| pos + 1);
 
         if start < end {
             segment[start..end].to_vec()

@@ -1,5 +1,24 @@
 [build]
-rustflags = ["-W", "rust-2018-idioms"]
+rustflags = [
+    "-W", "rust-2021-compatibility",
+    "-W", "future-incompatible",
+    "-W", "unused-crate-dependencies",
+    "-W", "rustdoc::missing-crate-level-docs",
+    "-W", "rustdoc::broken-intra-doc-links",
+    
+    "-W", "clippy::all",
+    "-W", "clippy::pedantic",
+    "-W", "clippy::nursery",
+    "-W", "clippy::perf",
+    "-W", "clippy::cargo",
+]
+
+[target.'cfg(not(debug_assertions))']
+rustflags = [
+    "-C", "target-cpu=native",
+    "-C", "codegen-units=1",
+    "-C", "lto=fat",
+]
 
 [alias]
 ck = "check"

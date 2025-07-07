@@ -2,7 +2,6 @@ pub mod openai;
 pub mod whisper;
 
 use anyhow::Result;
-
 pub use openai::OpenAiStt;
 #[allow(unused_imports)]
 pub use whisper::LocalWhisperStt;

@@ -5,6 +5,10 @@ edition = "2021"
 authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
 description = "Logging and tracing utilities for Echoes"
 license = "MIT"
+repository = "https://github.com/sengokudaikon/echoes"
+readme = "../README.md"
+keywords = ["logging", "tracing", "debugging"]
+categories = ["development-tools::debugging"]
 
 [dependencies]
 tracing = { workspace = true }

@@ -5,6 +5,10 @@ edition = "2024"
 authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
 description = "Binary for echoes dictation application"
 license = "MIT"
+repository = "https://github.com/sengokudaikon/echoes"
+readme = "../README.md"
+keywords = ["audio", "dictation", "speech", "accessibility"]
+categories = ["accessibility", "command-line-utilities"]
 
 [[bin]]
 name = "echoes"

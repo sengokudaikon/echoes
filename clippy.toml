@@ -1,4 +1,13 @@
+# Test-related allows
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
 allow-dbg-in-tests = true
 allow-print-in-tests = true
+
+# Lint level configuration
+# Enable comprehensive linting
+warn-on-all-wildcard-imports = true
+
+# Documentation relaxation
+# Allow missing docs for enum variants to reduce noise
+missing-docs-in-crate-items = false

@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use crate::shortcuts::{is_modifier_key, normalize_modifier, RecordingShortcut};
 
 /// Validation error types
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValidationError {
     EmptyShortcut,
     ModifierOnly,
@@ -17,13 +17,13 @@ pub enum ValidationError {
 impl std::fmt::Display for ValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValidationError::EmptyShortcut => write!(f, "Shortcut cannot be empty"),
-            ValidationError::ModifierOnly => write!(f, "Shortcut cannot be only a modifier key"),
-            ValidationError::DuplicateModifiers => write!(f, "Duplicate modifier keys detected"),
-            ValidationError::SystemConflict(desc) => {
+            Self::EmptyShortcut => write!(f, "Shortcut cannot be empty"),
+            Self::ModifierOnly => write!(f, "Shortcut cannot be only a modifier key"),
+            Self::DuplicateModifiers => write!(f, "Duplicate modifier keys detected"),
+            Self::SystemConflict(desc) => {
                 write!(f, "Conflicts with system shortcut: {desc}")
             }
-            ValidationError::ConflictsDetected(conflicts) => {
+            Self::ConflictsDetected(conflicts) => {
                 write!(f, "Conflicts detected: ")?;
                 for (i, conflict) in conflicts.iter().enumerate() {
                     if i > 0 {

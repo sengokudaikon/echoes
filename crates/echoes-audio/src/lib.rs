@@ -28,6 +28,7 @@ impl Default for AudioRecorder {
 }
 
 impl AudioRecorder {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             samples: Arc::new(Mutex::new(Vec::new())),
@@ -38,6 +39,7 @@ impl AudioRecorder {
     }
 
     /// Create a new recorder with VAD disabled
+    #[must_use]
     pub fn new_without_vad() -> Self {
         Self {
             samples: Arc::new(Mutex::new(Vec::new())),
@@ -48,10 +50,18 @@ impl AudioRecorder {
     }
 
     /// Enable or disable VAD processing
-    pub fn set_vad(&mut self, use_vad: bool) {
+    pub const fn set_vad(&mut self, use_vad: bool) {
         self.use_vad = use_vad;
     }
 
+    /// Start audio recording from the default input device
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - No input device is available
+    /// - Audio stream creation fails
+    /// - Mutex is poisoned (internal error)
     pub fn start_recording(&mut self) -> Result<()> {
         // Clear previous samples
         self.samples.lock().map_err(|_| AudioError::MutexPoisoned)?.clear();
@@ -78,9 +88,9 @@ impl AudioRecorder {
 
         // Build the stream
         let stream = match config.sample_format() {
-            SampleFormat::F32 => self.build_input_stream::<f32>(&device, &config.into(), samples)?,
-            SampleFormat::I16 => self.build_input_stream::<i16>(&device, &config.into(), samples)?,
-            SampleFormat::U16 => self.build_input_stream::<u16>(&device, &config.into(), samples)?,
+            SampleFormat::F32 => Self::build_input_stream::<f32>(&device, &config.into(), samples)?,
+            SampleFormat::I16 => Self::build_input_stream::<i16>(&device, &config.into(), samples)?,
+            SampleFormat::U16 => Self::build_input_stream::<u16>(&device, &config.into(), samples)?,
             sample_format => {
                 return Err(AudioError::UnsupportedFormat(format!("{sample_format:?}")));
             }
@@ -94,6 +104,13 @@ impl AudioRecorder {
         Ok(())
     }
 
+    /// Stop audio recording and return raw WAV data
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Mutex is poisoned (internal error)
+    /// - WAV encoding fails
     pub fn stop_recording(&mut self) -> Result<Vec<u8>> {
         // Stop and drop the stream
         self.stream = None;
@@ -102,10 +119,22 @@ impl AudioRecorder {
         let samples = self.samples.lock().map_err(|_| AudioError::MutexPoisoned)?.clone();
 
         // Convert to WAV
-        self.samples_to_wav(samples)
+        self.samples_to_wav(&samples)
     }
 
     /// Stop recording and return both raw audio and VAD-processed segments
+    ///
+    /// Returns a tuple containing:
+    /// - Raw WAV data of the entire recording
+    /// - Vector of WAV data for each detected speech segment
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Mutex is poisoned (internal error)
+    /// - WAV encoding fails
+    /// - VAD processing fails
+    /// - Audio resampling fails
     pub fn stop_recording_with_vad(&mut self) -> Result<(Vec<u8>, Vec<Vec<u8>>)> {
         // Stop and drop the stream
         self.stream = None;
@@ -114,17 +143,17 @@ impl AudioRecorder {
         let samples = self.samples.lock().map_err(|_| AudioError::MutexPoisoned)?.clone();
 
         // First create the raw WAV
-        let raw_wav = self.samples_to_wav(samples.clone())?;
+        let raw_wav = self.samples_to_wav(&samples)?;
 
         // Resample to 16kHz if needed for VAD
-        let samples_16k = if self.sample_rate != 16000 {
+        let samples_16k = if self.sample_rate == 16000 {
+            samples
+        } else {
             debug!("Resampling from {}Hz to 16000Hz", self.sample_rate);
             let original_len = samples.len();
-            let resampled = self.resample_to_16khz(samples)?;
+            let resampled = self.resample_to_16khz(&samples)?;
             debug!("Resampled from {} samples to {} samples", original_len, resampled.len());
             resampled
-        } else {
-            samples
         };
 
         // Process with VAD
@@ -142,7 +171,7 @@ impl AudioRecorder {
         self.sample_rate = 16000; // Temporarily set to 16kHz for WAV output
 
         for segment in speech_segments {
-            let wav_data = self.samples_to_wav(segment)?;
+            let wav_data = self.samples_to_wav(&segment)?;
             wav_segments.push(wav_data);
         }
 
@@ -152,7 +181,7 @@ impl AudioRecorder {
     }
 
     /// Resample audio from current sample rate to 16kHz
-    fn resample_to_16khz(&self, samples: Vec<f32>) -> Result<Vec<f32>> {
+    fn resample_to_16khz(&self, samples: &[f32]) -> Result<Vec<f32>> {
         use rubato::{Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction};
 
         let params = SincInterpolationParameters {
@@ -165,8 +194,9 @@ impl AudioRecorder {
 
         // Create resampler with proper chunk size
         let chunk_size = 1024;
-        let mut resampler = SincFixedIn::<f32>::new(16000_f64 / self.sample_rate as f64, 2.0, params, chunk_size, 1)
-            .map_err(|e| AudioError::StreamCreationFailed(format!("Failed to create resampler: {e}")))?;
+        let mut resampler =
+            SincFixedIn::<f32>::new(16000_f64 / f64::from(self.sample_rate), 2.0, params, chunk_size, 1)
+                .map_err(|e| AudioError::StreamCreationFailed(format!("Failed to create resampler: {e}")))?;
 
         // Process all samples in chunks
         let mut output = Vec::new();
@@ -195,7 +225,7 @@ impl AudioRecorder {
                     .map_err(|e| AudioError::StreamCreationFailed(format!("Resampling failed: {e}")))?;
                 if let Some(out_chunk) = waves_out.first() {
                     // Only take the proportional amount of output samples
-                    let output_len = (chunk.len() as f64 * 16000.0 / self.sample_rate as f64) as usize;
+                    let output_len = (chunk.len() as f64 * 16000.0 / f64::from(self.sample_rate)) as usize;
                     output.extend_from_slice(&out_chunk[..output_len.min(out_chunk.len())]);
                 }
             }
@@ -207,7 +237,7 @@ impl AudioRecorder {
     }
 
     fn build_input_stream<T>(
-        &self, device: &cpal::Device, config: &cpal::StreamConfig, samples: Arc<Mutex<Vec<f32>>>,
+        device: &cpal::Device, config: &cpal::StreamConfig, samples: Arc<Mutex<Vec<f32>>>,
     ) -> Result<cpal::Stream>
     where
         T: cpal::SizedSample + Send + 'static,
@@ -220,7 +250,7 @@ impl AudioRecorder {
                 config,
                 move |data: &[T], _: &cpal::InputCallbackInfo| match samples.lock() {
                     Ok(mut samples) => {
-                        for sample in data.iter() {
+                        for sample in data {
                             samples.push(sample.to_sample::<f32>());
                         }
                     }
@@ -236,7 +266,7 @@ impl AudioRecorder {
         Ok(stream)
     }
 
-    fn samples_to_wav(&self, samples: Vec<f32>) -> Result<Vec<u8>> {
+    fn samples_to_wav(&self, samples: &[f32]) -> Result<Vec<u8>> {
         let spec = hound::WavSpec {
             channels: 1,
             sample_rate: self.sample_rate, // Use actual sample rate
@@ -250,7 +280,7 @@ impl AudioRecorder {
                 hound::WavWriter::new(&mut cursor, spec).map_err(|e| AudioError::WavEncodingFailed(e.to_string()))?;
 
             for sample in samples {
-                let amplitude = (sample * i16::MAX as f32) as i16;
+                let amplitude = (sample * f32::from(i16::MAX)) as i16;
                 writer
                     .write_sample(amplitude)
                     .map_err(|e| AudioError::WavEncodingFailed(e.to_string()))?;
@@ -265,7 +295,14 @@ impl AudioRecorder {
     }
 
     /// Save samples directly to a WAV file
-    pub fn save_samples_to_file(&self, samples: Vec<f32>, path: &std::path::Path) -> Result<()> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - File creation fails
+    /// - WAV encoding fails
+    /// - File writing fails
+    pub fn save_samples_to_file(&self, samples: &[f32], path: &std::path::Path) -> Result<()> {
         let spec = hound::WavSpec {
             channels: 1,
             sample_rate: self.sample_rate,
@@ -277,7 +314,7 @@ impl AudioRecorder {
             hound::WavWriter::create(path, spec).map_err(|e| AudioError::WavEncodingFailed(e.to_string()))?;
 
         for sample in samples {
-            let amplitude = (sample * i16::MAX as f32) as i16;
+            let amplitude = (sample * f32::from(i16::MAX)) as i16;
             writer
                 .write_sample(amplitude)
                 .map_err(|e| AudioError::WavEncodingFailed(e.to_string()))?;

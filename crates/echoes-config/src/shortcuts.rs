@@ -120,7 +120,8 @@ pub struct RecordingShortcut {
 
 impl RecordingShortcut {
     /// Create a new recording shortcut
-    pub fn new(mode: ShortcutMode, key: KeyCode, modifiers: Vec<KeyCode>) -> Self {
+    #[must_use]
+    pub const fn new(mode: ShortcutMode, key: KeyCode, modifiers: Vec<KeyCode>) -> Self {
         Self { mode, key, modifiers }
     }
 
@@ -148,6 +149,7 @@ impl RecordingShortcut {
     }
 
     /// Check for conflicts with system shortcuts
+    #[must_use]
     pub fn check_conflicts(&self) -> Vec<crate::conflict::ConflictInfo> {
         crate::conflict::check_shortcut_conflicts(self)
     }
@@ -164,7 +166,8 @@ impl Default for RecordingShortcut {
 }
 
 /// Check if a key is a modifier key
-pub fn is_modifier_key(key: &KeyCode) -> bool {
+#[must_use]
+pub const fn is_modifier_key(key: &KeyCode) -> bool {
     matches!(
         key,
         KeyCode::ControlLeft
@@ -179,7 +182,8 @@ pub fn is_modifier_key(key: &KeyCode) -> bool {
 }
 
 /// Normalize modifier keys (left/right variants to canonical form)
-pub fn normalize_modifier(key: &KeyCode) -> KeyCode {
+#[must_use]
+pub const fn normalize_modifier(key: &KeyCode) -> KeyCode {
     match key {
         KeyCode::ControlLeft | KeyCode::ControlRight => KeyCode::ControlLeft,
         KeyCode::ShiftLeft | KeyCode::ShiftRight => KeyCode::ShiftLeft,
@@ -189,7 +193,7 @@ pub fn normalize_modifier(key: &KeyCode) -> KeyCode {
 }
 
 /// Get sort key for modifier ordering
-fn modifier_sort_key(key: &KeyCode) -> u8 {
+const fn modifier_sort_key(key: &KeyCode) -> u8 {
     match normalize_modifier(key) {
         KeyCode::ControlLeft => 1,
         KeyCode::ShiftLeft => 2,
@@ -200,6 +204,7 @@ fn modifier_sort_key(key: &KeyCode) -> u8 {
 }
 
 /// Format a keycode for display
+#[must_use]
 pub fn format_keycode(key: &KeyCode) -> String {
     let result = match key {
         KeyCode::ControlLeft | KeyCode::ControlRight => "Ctrl",
@@ -293,6 +298,7 @@ pub fn format_keycode(key: &KeyCode) -> String {
 }
 
 /// Extract shortcut from recorded keys
+#[must_use]
 pub fn extract_shortcut_from_keys(keys: &[KeyCode]) -> (Option<KeyCode>, Vec<KeyCode>) {
     let modifier_keys = [
         KeyCode::ControlLeft,
@@ -309,22 +315,16 @@ pub fn extract_shortcut_from_keys(keys: &[KeyCode]) -> (Option<KeyCode>, Vec<Key
     let mut main_key = None;
     let mut potential_modifier_keys = Vec::new();
 
-    // First pass: separate modifiers from regular keys
     for key in keys {
         if modifier_keys.contains(key) {
             potential_modifier_keys.push(*key);
         } else {
-            // Use the last non-modifier key as the main key
             main_key = Some(*key);
         }
     }
 
-    // If we only have modifier keys and no regular key, treat the first modifier as
-    // the main key
     if main_key.is_none() && !potential_modifier_keys.is_empty() {
-        // Use the first modifier key as the main key
         main_key = Some(potential_modifier_keys[0]);
-        // The rest become modifiers
         for key in potential_modifier_keys.iter().skip(1) {
             let normalized = normalize_modifier(key);
             if !modifiers.contains(&normalized) {
@@ -332,7 +332,6 @@ pub fn extract_shortcut_from_keys(keys: &[KeyCode]) -> (Option<KeyCode>, Vec<Key
             }
         }
     } else {
-        // Normal case: all modifier keys become modifiers
         for key in potential_modifier_keys {
             let normalized = normalize_modifier(&key);
             if !modifiers.contains(&normalized) {

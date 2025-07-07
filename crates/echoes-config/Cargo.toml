@@ -5,17 +5,17 @@ edition = "2021"
 authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
 description = "Configuration management and shortcut conflict detection for Echoes"
 license = "MIT"
+repository = "https://github.com/sengokudaikon/echoes"
+readme = "../README.md"
+keywords = ["audio", "speech", "dictation", "config"]
+categories = ["config", "accessibility"]
 
 [dependencies]
 # Workspace dependencies
 serde = { workspace = true }
 toml = { workspace = true }
 directories = { workspace = true }
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 
 # Additional dependencies specific to config
 tokio = { workspace = true }
-
-[dev-dependencies]
-tempfile = "3.8"

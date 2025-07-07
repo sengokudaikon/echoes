@@ -5,20 +5,18 @@ edition = "2021"
 authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
 description = "Audio recording and processing for Echoes"
 license = "MIT"
+repository = "https://github.com/sengokudaikon/echoes"
+readme = "../README.md"
+keywords = ["audio", "recording", "speech", "vad"]
+categories = ["multimedia::audio", "accessibility"]
 
 [dependencies]
 # Workspace dependencies
-serde = { workspace = true }
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-tokio = { workspace = true }
 
 # Audio-specific dependencies
 cpal = { workspace = true }
 hound = { workspace = true }
 voice_activity_detector = { workspace = true }
 rubato = { workspace = true }
-
-[dev-dependencies]
-tempfile = "3.8"

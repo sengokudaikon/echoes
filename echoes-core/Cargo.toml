@@ -5,6 +5,10 @@ edition = "2024"
 authors = ["sengokudaikon <sengokudaikon@akagane.tech>"]
 description = "Core library for echoes dictation application"
 license = "MIT"
+repository = "https://github.com/sengokudaikon/echoes"
+readme = "../README.md"
+keywords = ["audio", "dictation", "speech", "ui"]
+categories = ["accessibility", "gui"]
 
 [lib]
 name = "echoes_core"

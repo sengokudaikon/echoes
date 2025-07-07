@@ -74,7 +74,7 @@ echoes/
 │   │   ├── mod.rs        # STT trait definition
 │   │   ├── openai.rs     # OpenAI Whisper implementation
 │   │   ├── groq.rs       # Groq implementation
-│   │   └── lightning.rs  # Lightning Whisper MLX
+│   │   └── local.rs      # Local Whisper (whisper-rs)
 │   ├── config.rs         # Configuration management
 │   ├── tray.rs           # System tray integration
 │   └── text_output.rs    # Text typing functionality

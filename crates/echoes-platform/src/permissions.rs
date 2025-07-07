@@ -74,6 +74,7 @@ pub fn ensure_permissions() -> Result<bool> {
     }
 }
 
+#[must_use]
 pub fn get_required_permissions_description() -> String {
     #[cfg(target_os = "macos")]
     {

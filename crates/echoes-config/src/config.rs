@@ -27,10 +27,6 @@ pub struct Config {
     pub groq_stt_model: Option<String>,
     pub groq_stt_prompt: Option<String>,
 
-    // Lightning Whisper settings (Mac only)
-    #[cfg(target_os = "macos")]
-    pub lightning_whisper: LightningWhisperConfig,
-
     // Local Whisper settings (whisper-rs)
     pub local_whisper: LocalWhisperConfig,
 
@@ -47,16 +43,6 @@ pub enum SttProvider {
     OpenAI,
     Groq,
     LocalWhisper,
-    #[cfg(target_os = "macos")]
-    LightningWhisper,
-}
-
-/// Lightning Whisper configuration (macOS only)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LightningWhisperConfig {
-    pub model: String,
-    pub batch_size: u32,
-    pub quantization: Option<String>, // "4bit", "8bit", or None
 }
 
 /// Local Whisper configuration
@@ -67,7 +53,7 @@ pub struct LocalWhisperConfig {
 }
 
 /// Available Whisper models
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum WhisperModel {
     Tiny,
     TinyEn,
@@ -111,12 +97,6 @@ impl Default for Config {
             openai_stt_prompt: None,
             groq_stt_model: Some("whisper-large-v3".into()),
             groq_stt_prompt: None,
-            #[cfg(target_os = "macos")]
-            lightning_whisper: LightningWhisperConfig {
-                model: "distil-medium.en".into(),
-                batch_size: 12,
-                quantization: None,
-            },
             local_whisper: LocalWhisperConfig {
                 model: WhisperModel::Base,
                 model_path: None,
@@ -142,12 +122,12 @@ impl Config {
         if config_path.exists() {
             let content = std::fs::read_to_string(&config_path)
                 .map_err(|e| ConfigError::LoadFailed(format!("Failed to read config file: {e}")))?;
-            let config: Config =
+            let config: Self =
                 toml::from_str(&content).map_err(|e| ConfigError::ParseError(format!("Invalid config format: {e}")))?;
             Ok(config)
         } else {
             // Create default config
-            let config = Config::default();
+            let config = Self::default();
             config.save()?;
             Ok(config)
         }

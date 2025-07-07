@@ -33,8 +33,7 @@ impl Default for TracingConfig {
     fn default() -> Self {
         Self {
             log_dir: directories::ProjectDirs::from("com", "echoes", "Echoes")
-                .map(|dirs| dirs.data_dir().to_path_buf())
-                .unwrap_or_else(|| PathBuf::from(".")),
+                .map_or_else(|| PathBuf::from("."), |dirs| dirs.data_dir().to_path_buf()),
             app_name: "echoes".to_string(),
             console_output: true,
             file_output: true,
@@ -45,11 +44,11 @@ impl Default for TracingConfig {
 }
 
 /// Initialize the tracing system with comprehensive error tracking
-pub fn init_tracing(config: TracingConfig) -> Result<()> {
+pub fn init_tracing(config: &TracingConfig) -> Result<()> {
     // Create log directory if it doesn't exist
     if config.file_output {
         std::fs::create_dir_all(&config.log_dir)
-            .map_err(|e| LoggingError::FileCreationFailed(format!("Failed to create log directory: {e}")))?
+            .map_err(|e| LoggingError::FileCreationFailed(format!("Failed to create log directory: {e}")))?;
     }
 
     // Set up environment filter
@@ -149,7 +148,7 @@ struct ErrorTrackingLayer {
 }
 
 impl ErrorTrackingLayer {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             error_count: std::sync::atomic::AtomicU64::new(0),
         }
@@ -197,7 +196,7 @@ impl ErrorReport {
             message: error.to_string(),
             file: None,
             line: None,
-            thread: std::thread::current().name().map(|s| s.to_string()),
+            thread: std::thread::current().name().map(std::string::ToString::to_string),
             backtrace: std::env::var("RUST_BACKTRACE")
                 .ok()
                 .filter(|v| v == "1" || v == "full")
@@ -207,6 +206,7 @@ impl ErrorReport {
 
     /// Convert to JSON for logging or reporting
     #[allow(dead_code)]
+    #[must_use]
     pub fn to_json(&self) -> serde_json::Value {
         serde_json::json!({
             "timestamp": self.timestamp.to_rfc3339(),
@@ -248,13 +248,13 @@ macro_rules! log_error_structured {
 /// Helper function to log panics
 pub fn setup_panic_handler() {
     std::panic::set_hook(Box::new(|panic_info| {
-        let location = panic_info
-            .location()
-            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
-            .unwrap_or_else(|| "unknown location".to_string());
+        let location = panic_info.location().map_or_else(
+            || "unknown location".to_string(),
+            |l| format!("{}:{}:{}", l.file(), l.line(), l.column()),
+        );
 
         let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
-            s.to_string()
+            (*s).to_string()
         } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
             s.clone()
         } else {
@@ -273,7 +273,7 @@ pub fn setup_panic_handler() {
 /// Clean up old log files
 #[allow(dead_code)]
 pub fn cleanup_old_logs(log_dir: &PathBuf, days_to_keep: u32) -> Result<()> {
-    let cutoff = chrono::Utc::now() - chrono::Duration::days(days_to_keep as i64);
+    let cutoff = chrono::Utc::now() - chrono::Duration::days(i64::from(days_to_keep));
 
     for entry in std::fs::read_dir(log_dir)
         .map_err(|e| LoggingError::FileCreationFailed(format!("Failed to read log directory: {e}")))?

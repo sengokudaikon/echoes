@@ -16,7 +16,7 @@ pub enum ConflictSeverity {
 }
 
 /// Information about a shortcut conflict
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConflictInfo {
     pub severity: ConflictSeverity,
     pub description: String,
@@ -246,6 +246,7 @@ impl Default for ConflictDetectionSystem {
 
 impl ConflictDetectionSystem {
     /// Create a new conflict detection system with all detectors
+    #[must_use]
     pub fn new() -> Self {
         let detectors: Vec<Box<dyn ConflictDetector>> = vec![
             Box::new(SystemConflictDetector::new()),
@@ -297,12 +298,9 @@ static CONFLICT_SYSTEM: LazyLock<Mutex<ConflictDetectionSystem>> =
 
 /// Main entry point for checking shortcut conflicts
 pub fn check_shortcut_conflicts(shortcut: &RecordingShortcut) -> Vec<ConflictInfo> {
-    if let Ok(mut system) = CONFLICT_SYSTEM.lock() {
-        system.check_conflicts(shortcut)
-    } else {
-        // Fallback if mutex is poisoned
-        Vec::new()
-    }
+    CONFLICT_SYSTEM
+        .lock()
+        .map_or_else(|_| Vec::new(), |mut system| system.check_conflicts(shortcut))
 }
 
 /// Check for accessibility concerns with a shortcut
@@ -387,12 +385,12 @@ fn is_easily_accessible(shortcut: &RecordingShortcut) -> bool {
         shortcut
             .modifiers
             .iter()
-            .all(|m| left_side_keys.contains(m) || is_universal_modifier(m))
+            .all(|m| left_side_keys.contains(m) || is_universal_modifier(*m))
     } else if main_key_right {
         shortcut
             .modifiers
             .iter()
-            .all(|m| right_side_keys.contains(m) || is_universal_modifier(m))
+            .all(|m| right_side_keys.contains(m) || is_universal_modifier(*m))
     } else {
         // Main key is in the middle (like Space), generally accessible
         true
@@ -400,7 +398,7 @@ fn is_easily_accessible(shortcut: &RecordingShortcut) -> bool {
 }
 
 /// Check if a key is a universal modifier (accessible from both sides)
-fn is_universal_modifier(key: &KeyCode) -> bool {
+const fn is_universal_modifier(key: KeyCode) -> bool {
     matches!(
         key,
         KeyCode::Alt | KeyCode::AltGr | KeyCode::MetaLeft | KeyCode::MetaRight
