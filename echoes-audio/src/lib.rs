@@ -380,6 +380,7 @@ impl AudioRecorder {
 
             for sample in samples {
                 // Proper conversion from f32 audio sample [-1.0, 1.0] to int16 with clamping
+                #[allow(clippy::cast_possible_truncation)]
                 let amplitude = (sample.clamp(-1.0, 1.0) * 32767.0).round().clamp(-32768.0, 32767.0) as i16;
                 writer
                     .write_sample(amplitude)
@@ -415,6 +416,7 @@ impl AudioRecorder {
 
         for sample in samples {
             // Proper conversion from f32 audio sample [-1.0, 1.0] to int16 with clamping
+            #[allow(clippy::cast_possible_truncation)]
             let amplitude = (sample.clamp(-1.0, 1.0) * 32767.0).round().clamp(-32768.0, 32767.0) as i16;
             writer
                 .write_sample(amplitude)
