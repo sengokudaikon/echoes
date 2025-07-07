@@ -1,24 +1,27 @@
 pub mod error;
 pub mod vad;
 
-use std::{
-    io::Cursor,
-    sync::{Arc, Mutex},
-};
+use std::io::Cursor;
 
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     SampleFormat,
 };
 pub use error::{AudioError, Result};
+use rtrb::{Consumer, Producer, RingBuffer};
 use tracing::{debug, error};
 use vad::VadProcessor;
 
 pub struct AudioRecorder {
-    samples: Arc<Mutex<Vec<f32>>>,
+    ring_buffer_producer: Option<Producer<f32>>,
+    ring_buffer_consumer: Option<Consumer<f32>>,
     stream: Option<cpal::Stream>,
     use_vad: bool,
     sample_rate: u32,
+    /// Maximum recording duration in seconds (default: 300 seconds = 5 minutes)
+    max_duration_seconds: u32,
+    /// Ring buffer capacity in samples
+    ring_buffer_capacity: usize,
 }
 
 impl Default for AudioRecorder {
@@ -30,28 +33,72 @@ impl Default for AudioRecorder {
 impl AudioRecorder {
     #[must_use]
     pub fn new() -> Self {
+        // Calculate ring buffer capacity: 5 minutes * 16000 samples/sec = 4.8M samples
+        let ring_buffer_capacity = 300 * 16000;
+        let (producer, consumer) = RingBuffer::new(ring_buffer_capacity);
+
         Self {
-            samples: Arc::new(Mutex::new(Vec::new())),
+            ring_buffer_producer: Some(producer),
+            ring_buffer_consumer: Some(consumer),
             stream: None,
             use_vad: true,
             sample_rate: 16000,
+            max_duration_seconds: 300, // 5 minutes default
+            ring_buffer_capacity,
         }
     }
 
     /// Create a new recorder with VAD disabled
     #[must_use]
     pub fn new_without_vad() -> Self {
+        // Calculate ring buffer capacity: 5 minutes * 16000 samples/sec = 4.8M samples
+        let ring_buffer_capacity = 300 * 16000;
+        let (producer, consumer) = RingBuffer::new(ring_buffer_capacity);
+
         Self {
-            samples: Arc::new(Mutex::new(Vec::new())),
+            ring_buffer_producer: Some(producer),
+            ring_buffer_consumer: Some(consumer),
             stream: None,
             use_vad: false,
             sample_rate: 16000,
+            max_duration_seconds: 300, // 5 minutes default
+            ring_buffer_capacity,
         }
     }
 
     /// Enable or disable VAD processing
     pub const fn set_vad(&mut self, use_vad: bool) {
         self.use_vad = use_vad;
+    }
+
+    /// Set maximum recording duration in seconds
+    pub fn set_max_duration(&mut self, seconds: u32) {
+        self.max_duration_seconds = seconds;
+        // Recreate ring buffer with new capacity
+        let ring_buffer_capacity = (seconds as usize) * (self.sample_rate as usize);
+        let (producer, consumer) = RingBuffer::new(ring_buffer_capacity);
+        self.ring_buffer_producer = Some(producer);
+        self.ring_buffer_consumer = Some(consumer);
+        self.ring_buffer_capacity = ring_buffer_capacity;
+    }
+
+    /// Clear the audio buffer by consuming all available samples
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the ring buffer operations fail
+    pub fn clear_buffer(&mut self) -> Result<()> {
+        if let Some(ref mut consumer) = self.ring_buffer_consumer {
+            // Consume all available samples
+            while let Ok(chunk) = consumer.read_chunk(consumer.slots()) {
+                if chunk.is_empty() {
+                    break;
+                }
+                // Simply drop the chunk to clear the buffer
+                chunk.commit_all();
+            }
+        }
+        Ok(())
     }
 
     /// Start audio recording from the default input device
@@ -61,9 +108,10 @@ impl AudioRecorder {
     /// Returns an error if:
     /// - No input device is available
     /// - Audio stream creation fails
-    /// - Mutex is poisoned (internal error)
+    /// - Ring buffer is not available
     pub fn start_recording(&mut self) -> Result<()> {
-        self.samples.lock().map_err(|_| AudioError::MutexPoisoned)?.clear();
+        // Clear any existing samples
+        self.clear_buffer()?;
 
         let host = cpal::default_host();
         let device = host.default_input_device().ok_or(AudioError::NoInputDevice)?;
@@ -80,12 +128,18 @@ impl AudioRecorder {
 
         self.sample_rate = config.sample_rate().0;
 
-        let samples = Arc::clone(&self.samples);
+        // Take the producer from the option (we'll need to recreate it if this fails)
+        let producer = self
+            .ring_buffer_producer
+            .take()
+            .ok_or_else(|| AudioError::Other("Ring buffer producer not available".into()))?;
+
+        debug!("Ring buffer capacity: {} samples", self.ring_buffer_capacity);
 
         let stream = match config.sample_format() {
-            SampleFormat::F32 => Self::build_input_stream::<f32>(&device, &config.into(), samples)?,
-            SampleFormat::I16 => Self::build_input_stream::<i16>(&device, &config.into(), samples)?,
-            SampleFormat::U16 => Self::build_input_stream::<u16>(&device, &config.into(), samples)?,
+            SampleFormat::F32 => Self::build_input_stream::<f32>(&device, &config.into(), producer)?,
+            SampleFormat::I16 => Self::build_input_stream::<i16>(&device, &config.into(), producer)?,
+            SampleFormat::U16 => Self::build_input_stream::<u16>(&device, &config.into(), producer)?,
             sample_format => {
                 return Err(AudioError::UnsupportedFormat(format!("{sample_format:?}")));
             }
@@ -104,14 +158,34 @@ impl AudioRecorder {
     /// # Errors
     ///
     /// Returns an error if:
-    /// - Mutex is poisoned (internal error)
+    /// - Ring buffer consumer is not available
     /// - WAV encoding fails
+    /// - Stream stop fails
     pub fn stop_recording(&mut self) -> Result<Vec<u8>> {
+        // Explicitly pause the stream before dropping it
+        if let Some(stream) = &self.stream {
+            stream
+                .pause()
+                .map_err(|e| AudioError::StreamCreationFailed(format!("Failed to pause stream: {e}")))?;
+        }
+
         // Stop and drop the stream
         self.stream = None;
 
-        // Get the samples
-        let samples = self.samples.lock().map_err(|_| AudioError::MutexPoisoned)?.clone();
+        // Collect all samples from the ring buffer
+        let mut samples = Vec::new();
+        if let Some(ref mut consumer) = self.ring_buffer_consumer {
+            while let Ok(chunk) = consumer.read_chunk(consumer.slots()) {
+                if chunk.is_empty() {
+                    break;
+                }
+                // Copy data from the chunk to our samples Vec
+                let (first_slice, second_slice) = chunk.as_slices();
+                samples.extend_from_slice(first_slice);
+                samples.extend_from_slice(second_slice);
+                chunk.commit_all();
+            }
+        }
 
         // Convert to WAV
         self.samples_to_wav(&samples)
@@ -126,16 +200,36 @@ impl AudioRecorder {
     /// # Errors
     ///
     /// Returns an error if:
-    /// - Mutex is poisoned (internal error)
+    /// - Ring buffer consumer is not available
     /// - WAV encoding fails
     /// - VAD processing fails
     /// - Audio resampling fails
+    /// - Stream stop fails
     pub fn stop_recording_with_vad(&mut self) -> Result<(Vec<u8>, Vec<Vec<u8>>)> {
+        // Explicitly pause the stream before dropping it
+        if let Some(stream) = &self.stream {
+            stream
+                .pause()
+                .map_err(|e| AudioError::StreamCreationFailed(format!("Failed to pause stream: {e}")))?;
+        }
+
         // Stop and drop the stream
         self.stream = None;
 
-        // Get the samples
-        let samples = self.samples.lock().map_err(|_| AudioError::MutexPoisoned)?.clone();
+        // Collect all samples from the ring buffer
+        let mut samples = Vec::new();
+        if let Some(ref mut consumer) = self.ring_buffer_consumer {
+            while let Ok(chunk) = consumer.read_chunk(consumer.slots()) {
+                if chunk.is_empty() {
+                    break;
+                }
+                // Copy data from the chunk to our samples Vec
+                let (first_slice, second_slice) = chunk.as_slices();
+                samples.extend_from_slice(first_slice);
+                samples.extend_from_slice(second_slice);
+                chunk.commit_all();
+            }
+        }
 
         // First create the raw WAV
         let raw_wav = self.samples_to_wav(&samples)?;
@@ -239,7 +333,7 @@ impl AudioRecorder {
     }
 
     fn build_input_stream<T>(
-        device: &cpal::Device, config: &cpal::StreamConfig, samples: Arc<Mutex<Vec<f32>>>,
+        device: &cpal::Device, config: &cpal::StreamConfig, mut producer: Producer<f32>,
     ) -> Result<cpal::Stream>
     where
         T: cpal::SizedSample + Send + 'static,
@@ -250,14 +344,37 @@ impl AudioRecorder {
         let stream = device
             .build_input_stream(
                 config,
-                move |data: &[T], _: &cpal::InputCallbackInfo| match samples.lock() {
-                    Ok(mut samples) => {
-                        for sample in data {
-                            samples.push(sample.to_sample::<f32>());
+                move |data: &[T], _: &cpal::InputCallbackInfo| {
+                    // Convert samples to f32
+                    let samples: Vec<f32> = data.iter().map(|sample| sample.to_sample::<f32>()).collect();
+
+                    // Try to write samples to the ring buffer
+                    if let Ok(mut chunk) = producer.write_chunk_uninit(samples.len()) {
+                        // Copy samples to the ring buffer
+                        let mut write_pos = 0;
+                        let (first_slice, second_slice) = chunk.as_mut_slices();
+
+                        // Fill first slice
+                        let first_len = first_slice.len().min(samples.len() - write_pos);
+                        for i in 0..first_len {
+                            first_slice[i].write(samples[write_pos + i]);
                         }
-                    }
-                    Err(e) => {
-                        error!("Failed to lock samples buffer: {}", e);
+                        write_pos += first_len;
+
+                        // Fill second slice if needed
+                        if write_pos < samples.len() {
+                            let second_len = second_slice.len().min(samples.len() - write_pos);
+                            for i in 0..second_len {
+                                second_slice[i].write(samples[write_pos + i]);
+                            }
+                        }
+
+                        // Safety: We've initialized all elements
+                        unsafe {
+                            chunk.commit_all();
+                        }
+                    } else {
+                        debug!("Ring buffer full, dropping audio samples");
                     }
                 },
                 err_fn,

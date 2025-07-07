@@ -20,6 +20,7 @@ cpal.workspace = true
 hound.workspace = true
 voice_activity_detector.workspace = true
 rubato.workspace = true
+rtrb = "0.3"
 
 [lints]
 workspace = true
