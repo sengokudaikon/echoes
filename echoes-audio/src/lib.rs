@@ -63,10 +63,8 @@ impl AudioRecorder {
     /// - Audio stream creation fails
     /// - Mutex is poisoned (internal error)
     pub fn start_recording(&mut self) -> Result<()> {
-        // Clear previous samples
         self.samples.lock().map_err(|_| AudioError::MutexPoisoned)?.clear();
 
-        // Get default input device
         let host = cpal::default_host();
         let device = host.default_input_device().ok_or(AudioError::NoInputDevice)?;
 
@@ -75,18 +73,15 @@ impl AudioRecorder {
             .map_err(|e| AudioError::StreamCreationFailed(e.to_string()))?;
         debug!("Using input device: {}", device_name);
 
-        // Get default config
         let config = device
             .default_input_config()
             .map_err(|e| AudioError::StreamCreationFailed(e.to_string()))?;
         debug!("Default input config: {:?}", config);
 
-        // Store the actual sample rate
         self.sample_rate = config.sample_rate().0;
 
         let samples = Arc::clone(&self.samples);
 
-        // Build the stream
         let stream = match config.sample_format() {
             SampleFormat::F32 => Self::build_input_stream::<f32>(&device, &config.into(), samples)?,
             SampleFormat::I16 => Self::build_input_stream::<i16>(&device, &config.into(), samples)?,
@@ -225,6 +220,13 @@ impl AudioRecorder {
                     .map_err(|e| AudioError::StreamCreationFailed(format!("Resampling failed: {e}")))?;
                 if let Some(out_chunk) = waves_out.first() {
                     // Only take the proportional amount of output samples
+                    // Safe: chunk.len() is audio chunk size (typically small), calculation result
+                    // is bounded by resampling ratio
+                    #[allow(
+                        clippy::cast_precision_loss,
+                        clippy::cast_possible_truncation,
+                        clippy::cast_sign_loss
+                    )]
                     let output_len = (chunk.len() as f64 * 16000.0 / f64::from(self.sample_rate)) as usize;
                     output.extend_from_slice(&out_chunk[..output_len.min(out_chunk.len())]);
                 }
@@ -280,6 +282,9 @@ impl AudioRecorder {
                 hound::WavWriter::new(&mut cursor, spec).map_err(|e| AudioError::WavEncodingFailed(e.to_string()))?;
 
             for sample in samples {
+                // Safe: Intentional conversion from f32 audio sample [-1.0, 1.0] to 16-bit
+                // integer
+                #[allow(clippy::cast_possible_truncation)]
                 let amplitude = (sample * f32::from(i16::MAX)) as i16;
                 writer
                     .write_sample(amplitude)
@@ -314,6 +319,9 @@ impl AudioRecorder {
             hound::WavWriter::create(path, spec).map_err(|e| AudioError::WavEncodingFailed(e.to_string()))?;
 
         for sample in samples {
+            // Safe: Intentional conversion from f32 audio sample [-1.0, 1.0] to 16-bit
+            // integer
+            #[allow(clippy::cast_possible_truncation)]
             let amplitude = (sample * f32::from(i16::MAX)) as i16;
             writer
                 .write_sample(amplitude)

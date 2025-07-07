@@ -23,16 +23,19 @@ impl OpenAiStt {
         }
     }
 
+    #[must_use]
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
         self.base_url = base_url.into();
         self
     }
 
+    #[must_use]
     pub fn with_model(mut self, model: impl Into<String>) -> Self {
         self.model = model.into();
         self
     }
 
+    #[must_use]
     pub fn with_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.prompt = Some(prompt.into());
         self
@@ -42,8 +45,6 @@ impl OpenAiStt {
 impl SttProvider for OpenAiStt {
     async fn transcribe(&self, audio_data: Vec<u8>) -> Result<String> {
         debug!("Starting OpenAI transcription with model: {}", self.model);
-
-        // Create multipart form
         let audio_part = Part::bytes(audio_data).file_name("audio.wav").mime_str("audio/wav")?;
 
         let mut form = Form::new()
@@ -51,12 +52,10 @@ impl SttProvider for OpenAiStt {
             .text("model", self.model.clone())
             .text("response_format", "json");
 
-        // Add prompt if provided
         if let Some(ref prompt) = self.prompt {
             form = form.text("prompt", prompt.clone());
         }
 
-        // Make API request
         let url = format!("{}/audio/transcriptions", self.base_url);
         debug!("Making request to: {}", url);
 
@@ -68,21 +67,21 @@ impl SttProvider for OpenAiStt {
             .send()
             .await?;
 
-        // Check response status
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
             let error_message = format!("OpenAI API error: {status} - {error_text}");
             error!("{}", error_message);
+            #[allow(clippy::wildcard_imports)]
             return Err(anyhow::anyhow!(error_message));
         }
 
-        // Parse response
         let response_text = response.text().await?;
         debug!("Raw response: {}", response_text);
 
         let response_json: serde_json::Value = serde_json::from_str(&response_text)?;
 
+        #[allow(clippy::wildcard_imports)]
         let text = response_json["text"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing 'text' field in response"))?

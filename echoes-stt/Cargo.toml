@@ -15,19 +15,15 @@ categories = ["api-bindings", "accessibility"]
 echoes-config = { path = "../echoes-config" }
 
 # Workspace dependencies
-tokio = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
-reqwest = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-directories = { workspace = true }
-hound = { workspace = true }
+anyhow.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+reqwest.workspace = true
+directories.workspace = true
+hound.workspace = true
 
 # STT-specific dependencies
-whisper-rs = { workspace = true }
-tokio-util = "0.7"
+whisper-rs.workspace = true
 
-[dev-dependencies]
-tempfile = "3.8"
+[lints]
+workspace = true

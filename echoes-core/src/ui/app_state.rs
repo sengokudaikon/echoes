@@ -126,12 +126,11 @@ impl AppState {
         self.keyboard_manager.stop_recording_shortcut();
     }
 
-    // Convenience accessors
-    pub fn recording(&self) -> bool {
+    pub const fn recording(&self) -> bool {
         self.session_manager.recording
     }
 
-    pub fn recording_shortcut(&self) -> bool {
+    pub const fn recording_shortcut(&self) -> bool {
         self.session_manager.recording_shortcut
     }
 
@@ -139,11 +138,11 @@ impl AppState {
         &self.session_manager.logs
     }
 
-    pub fn error_message(&self) -> &Option<String> {
-        &self.session_manager.error_message
+    pub const fn error_message(&self) -> Option<&String> {
+        self.session_manager.error_message.as_ref()
     }
 
-    pub fn permissions_granted(&self) -> bool {
+    pub const fn permissions_granted(&self) -> bool {
         self.keyboard_manager.permissions_granted
     }
 
@@ -151,15 +150,15 @@ impl AppState {
         self.session_manager.add_log(msg);
     }
 
-    pub fn recorded_shortcut(&mut self) -> Option<RecordingShortcut> {
+    pub const fn recorded_shortcut(&mut self) -> Option<RecordingShortcut> {
         self.shortcut_manager.take_recorded()
     }
 
-    pub fn show_visual_editor(&self) -> bool {
+    pub const fn show_visual_editor(&self) -> bool {
         self.shortcut_manager.show_visual_editor
     }
 
-    pub fn set_show_visual_editor(&mut self, show: bool) {
+    pub const fn set_show_visual_editor(&mut self, show: bool) {
         self.shortcut_manager.set_visual_editor(show);
     }
 
@@ -224,7 +223,7 @@ impl KeyboardEventCommand for RecordingKeyReleasedCommand {
                     // Save raw recording
                     let filename = format!("recording_{timestamp}_raw.wav");
                     match std::fs::write(&filename, &raw_audio) {
-                        Ok(_) => {
+                        Ok(()) => {
                             app_state.session_manager.add_log(format!(
                                 "Saved raw: {} ({} bytes)",
                                 filename,
@@ -245,7 +244,7 @@ impl KeyboardEventCommand for RecordingKeyReleasedCommand {
                     for (i, segment_data) in segments.iter().enumerate() {
                         let filename = format!("recording_{timestamp}_segment_{i}.wav");
                         match std::fs::write(&filename, segment_data) {
-                            Ok(_) => {
+                            Ok(()) => {
                                 app_state.session_manager.add_log(format!(
                                     "Saved segment: {} ({} bytes)",
                                     filename,

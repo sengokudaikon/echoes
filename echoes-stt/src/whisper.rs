@@ -11,6 +11,12 @@ pub struct LocalWhisperStt {
 }
 
 impl LocalWhisperStt {
+    /// Creates a new `LocalWhisperStt` instance with the given configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the Whisper model cannot be loaded or if the model
+    /// file is not found.
     pub fn new(config: &LocalWhisperConfig) -> Result<Self> {
         let model_path = if let Some(path) = &config.model_path {
             path.clone()
@@ -81,7 +87,7 @@ impl SttProvider for LocalWhisperStt {
         // Convert to f32 samples as expected by whisper-rs
         let samples: Vec<f32> = reader
             .samples::<i16>()
-            .map(|s| s.map(|sample| sample as f32 / i16::MAX as f32))
+            .map(|s| s.map(|sample| f32::from(sample) / f32::from(i16::MAX)))
             .collect::<Result<Vec<_>, _>>()
             .context("Failed to read audio samples")?;
 

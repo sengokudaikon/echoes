@@ -3,7 +3,8 @@
 use echoes_config::KeyCode;
 use rdev::Key;
 
-pub fn keycode_to_rdev_key(keycode: KeyCode) -> Key {
+#[must_use]
+pub const fn keycode_to_rdev_key(keycode: KeyCode) -> Key {
     match keycode {
         // Control keys
         KeyCode::ControlLeft => Key::ControlLeft,
@@ -104,7 +105,8 @@ pub fn keycode_to_rdev_key(keycode: KeyCode) -> Key {
     }
 }
 
-pub fn rdev_key_to_keycode(key: Key) -> Option<KeyCode> {
+#[must_use]
+pub const fn rdev_key_to_keycode(key: Key) -> Option<KeyCode> {
     match key {
         // Control keys
         Key::ControlLeft => Some(KeyCode::ControlLeft),
@@ -207,6 +209,7 @@ pub fn rdev_key_to_keycode(key: Key) -> Option<KeyCode> {
     }
 }
 
+#[must_use]
 pub fn key_from_string(s: &str) -> Option<Key> {
     match s {
         // Control keys
@@ -310,6 +313,7 @@ pub fn key_from_string(s: &str) -> Option<Key> {
     }
 }
 
+#[must_use]
 pub fn key_to_string(key: &Key) -> String {
     match key {
         Key::ControlLeft => "ControlLeft",

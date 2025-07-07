@@ -7,18 +7,22 @@ pub mod ui;
 use echoes_logging::{TracingConfig, init_tracing, setup_panic_handler};
 use error::{EchoesError, Result, UiError};
 
-pub async fn run() -> Result<()> {
-    // Set up panic handler
+/// Runs the main application loop
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - Configuration cannot be loaded
+/// - UI initialization fails
+/// - eframe native window creation fails
+pub fn run() -> Result<()> {
     setup_panic_handler();
 
-    // Initialize tracing with default config
     let tracing_config = TracingConfig::default();
-    init_tracing(tracing_config)?;
+    init_tracing(&tracing_config)?;
 
-    // Load configuration
     let config = Config::load().map_err(|e| EchoesError::Other(format!("Failed to load config: {e}")))?;
 
-    // Set up native options for the window
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([800.0, 600.0])
@@ -27,7 +31,6 @@ pub async fn run() -> Result<()> {
         ..Default::default()
     };
 
-    // Run the app
     eframe::run_native(
         "Whispo",
         native_options,

@@ -40,6 +40,13 @@ impl std::fmt::Display for ValidationError {
 impl std::error::Error for ValidationError {}
 
 /// Validate a recording shortcut
+///
+/// # Errors
+///
+/// Returns an error if the shortcut is invalid:
+/// - `ModifierOnly`: If the main key is a modifier key but other modifiers are
+///   also present
+/// - `InvalidKey`: If the key is not supported or recognized
 pub fn validate_shortcut(shortcut: &RecordingShortcut) -> Result<(), ValidationError> {
     // Allow single modifier keys as shortcuts (like Ctrl for recording)
     // Only reject if we have modifiers but the main key is also a modifier

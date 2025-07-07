@@ -11,14 +11,15 @@ pub struct ShortcutEditor<'a> {
     recording_timeout: f32,
 }
 
+#[allow(clippy::elidable_lifetime_names)]
 impl<'a> ShortcutEditor<'a> {
-    pub fn new(shortcut: &'a mut RecordingShortcut) -> Self {
+    pub const fn new(shortcut: &'a mut RecordingShortcut) -> Self {
         Self {
             shortcut,
             is_recording: false,
             recorded_shortcut: None,
             recording_start_time: None,
-            recording_timeout: 5.0, // 5 seconds timeout
+            recording_timeout: 5.0,
         }
     }
 
@@ -47,7 +48,9 @@ pub enum ShortcutEditorAction {
     Reset,
 }
 
+#[allow(clippy::elidable_lifetime_names)]
 impl<'a> ShortcutEditor<'a> {
+    #[allow(clippy::too_many_lines)]
     pub fn show(self, ui: &mut Ui) -> (Response, ShortcutEditorAction) {
         let desired_size = Vec2::new(ui.available_width(), 120.0);
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
@@ -55,7 +58,6 @@ impl<'a> ShortcutEditor<'a> {
         if ui.is_rect_visible(rect) {
             let painter = ui.painter();
 
-            // Background
             let bg_color = if self.is_recording {
                 Color32::from_rgb(40, 40, 60)
             } else {
@@ -63,22 +65,19 @@ impl<'a> ShortcutEditor<'a> {
             };
             painter.rect_filled(rect, 4.0, bg_color);
 
-            // Border with pulsing animation when recording
             if self.is_recording {
-                // Request repaint after a delay for animation (60 FPS max)
                 ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
 
-                // Calculate pulse effect
                 let elapsed = self
                     .recording_start_time
-                    .map(|start| start.elapsed().as_secs_f32())
-                    .unwrap_or(0.0);
-                let pulse = ((elapsed * 3.0).sin() + 1.0) / 2.0;
-                let border_width = 1.0 + pulse * 2.0;
+                    .map_or(0.0, |start| start.elapsed().as_secs_f32());
+                let pulse = f32::midpoint((elapsed * 3.0).sin(), 1.0);
+                let border_width = pulse.mul_add(2.0, 1.0);
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                 let border_color = Color32::from_rgb(
-                    100 + (pulse * 50.0) as u8,
-                    100 + (pulse * 50.0) as u8,
-                    200 + (pulse * 55.0) as u8,
+                    100 + (pulse * 50.0).clamp(0.0, 155.0) as u8,
+                    100 + (pulse * 50.0).clamp(0.0, 155.0) as u8,
+                    200 + (pulse * 55.0).clamp(0.0, 55.0) as u8,
                 );
                 painter.rect_stroke(
                     rect,
@@ -106,7 +105,6 @@ impl<'a> ShortcutEditor<'a> {
                 );
             }
 
-            // Title
             let title_pos = rect.min + Vec2::new(10.0, 10.0);
             let title_text = if self.is_recording {
                 "Press your desired shortcut..."
@@ -121,7 +119,6 @@ impl<'a> ShortcutEditor<'a> {
                 Color32::from_rgb(200, 200, 200),
             );
 
-            // Display current or recorded shortcut
             let shortcut_text = if let Some(ref recorded) = self.recorded_shortcut {
                 format_shortcut(recorded)
             } else {
@@ -130,7 +127,6 @@ impl<'a> ShortcutEditor<'a> {
 
             let shortcut_pos = rect.center() - Vec2::new(0.0, 10.0);
             let text_color = if self.is_recording && self.recorded_shortcut.is_some() {
-                // Highlight when a new shortcut is being pressed
                 Color32::from_rgb(150, 255, 150)
             } else {
                 Color32::from_rgb(255, 255, 255)
@@ -144,7 +140,6 @@ impl<'a> ShortcutEditor<'a> {
                 text_color,
             );
 
-            // Show current keys being pressed when recording
             if self.is_recording && self.recorded_shortcut.is_some() {
                 let keys_hint_pos = rect.center() + Vec2::new(0.0, 20.0);
                 painter.text(
@@ -156,7 +151,6 @@ impl<'a> ShortcutEditor<'a> {
                 );
             }
 
-            // Instructions
             let instruction_pos = rect.max - Vec2::new(10.0, 30.0);
             let instruction_text = if self.is_recording {
                 "Press ESC or right-click to cancel"
@@ -171,7 +165,6 @@ impl<'a> ShortcutEditor<'a> {
                 Color32::from_rgb(150, 150, 150),
             );
 
-            // Additional instructions
             let extra_instruction_pos = rect.max - Vec2::new(10.0, 10.0);
             let extra_text = if self.is_recording {
                 "Release keys to confirm shortcut"
@@ -187,19 +180,16 @@ impl<'a> ShortcutEditor<'a> {
             );
         }
 
-        // Apply recorded shortcut if available
         if let Some(recorded) = self.recorded_shortcut {
             *self.shortcut = recorded;
         }
 
-        // Determine action based on clicks
         let action = if response.clicked() && !self.is_recording {
             ShortcutEditorAction::StartRecording
         } else if response.secondary_clicked() {
             if self.is_recording {
                 ShortcutEditorAction::CancelRecording
             } else {
-                // Reset to a safe default (Ctrl) while preserving the mode
                 self.shortcut.key = KeyCode::ControlLeft;
                 self.shortcut.modifiers.clear();
                 ShortcutEditorAction::Reset
@@ -215,18 +205,16 @@ impl<'a> ShortcutEditor<'a> {
 fn format_shortcut(shortcut: &RecordingShortcut) -> String {
     let mut parts = Vec::new();
 
-    // Add modifiers in a consistent order
     for modifier in &shortcut.modifiers {
-        parts.push(format_key(modifier));
+        parts.push(format_key(*modifier));
     }
 
-    // Add main key
-    parts.push(format_key(&shortcut.key));
+    parts.push(format_key(shortcut.key));
 
     parts.join(" + ")
 }
 
-fn format_key(key: &KeyCode) -> String {
+fn format_key(key: KeyCode) -> String {
     match key {
         KeyCode::ControlLeft | KeyCode::ControlRight => "Ctrl".to_string(),
         KeyCode::ShiftLeft | KeyCode::ShiftRight => "Shift".to_string(),
@@ -317,16 +305,16 @@ fn format_key(key: &KeyCode) -> String {
     }
 }
 
-// Visual builder component
 pub struct ShortcutBuilder<'a> {
     shortcut: &'a mut RecordingShortcut,
 }
 
 impl<'a> ShortcutBuilder<'a> {
-    pub fn new(shortcut: &'a mut RecordingShortcut) -> Self {
+    pub const fn new(shortcut: &'a mut RecordingShortcut) -> Self {
         Self { shortcut }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn show(&mut self, ui: &mut Ui) {
         ui.vertical(|ui| {
             ui.label("Build shortcut visually:");
@@ -334,7 +322,6 @@ impl<'a> ShortcutBuilder<'a> {
             ui.horizontal(|ui| {
                 ui.label("Modifiers:");
 
-                // Modifier checkboxes
                 let mut has_ctrl = self.shortcut.modifiers.contains(&KeyCode::ControlLeft);
                 if ui.checkbox(&mut has_ctrl, "Ctrl").changed() {
                     if has_ctrl {
@@ -406,7 +393,6 @@ impl<'a> ShortcutBuilder<'a> {
             ui.horizontal(|ui| {
                 ui.label("Main key:");
 
-                // Common keys dropdown
                 let common_keys = vec![
                     ("Space", KeyCode::Space),
                     ("Enter", KeyCode::Return),
@@ -425,14 +411,12 @@ impl<'a> ShortcutBuilder<'a> {
                     ("V", KeyCode::V),
                 ];
 
-                let current_key_str = format_key(&self.shortcut.key);
+                let current_key_str = format_key(self.shortcut.key);
                 egui::ComboBox::from_label("")
                     .selected_text(&current_key_str)
                     .show_ui(ui, |ui| {
                         for (label, key) in common_keys {
-                            if ui.selectable_value(&mut self.shortcut.key, key, label).clicked() {
-                                // Key was updated
-                            }
+                            if ui.selectable_value(&mut self.shortcut.key, key, label).clicked() {}
                         }
                     });
             });
@@ -440,13 +424,12 @@ impl<'a> ShortcutBuilder<'a> {
     }
 }
 
-// Component to display conflict warnings
 pub struct ConflictDisplay<'a> {
     conflicts: &'a [ConflictInfo],
 }
 
 impl<'a> ConflictDisplay<'a> {
-    pub fn new(conflicts: &'a [ConflictInfo]) -> Self {
+    pub const fn new(conflicts: &'a [ConflictInfo]) -> Self {
         Self { conflicts }
     }
 

@@ -11,7 +11,7 @@ pub struct KeyboardManager {
 }
 
 impl KeyboardManager {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             listener: None,
             event_rx: None,
@@ -26,7 +26,7 @@ impl KeyboardManager {
 
                 // Set up keyboard listener
                 let (tx, rx) = mpsc::channel();
-                let listener = KeyboardListener::new(tx.clone(), shortcut);
+                let listener = KeyboardListener::new(tx, shortcut);
                 let listener_arc = std::sync::Arc::new(listener);
 
                 if let Err(e) = listener_arc.start_listening() {

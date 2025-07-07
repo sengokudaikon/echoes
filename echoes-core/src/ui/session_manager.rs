@@ -33,19 +33,19 @@ impl SessionManager {
         self.error_message = error;
     }
 
-    pub fn start_recording(&mut self) {
+    pub const fn start_recording(&mut self) {
         self.recording = true;
     }
 
-    pub fn stop_recording(&mut self) {
+    pub const fn stop_recording(&mut self) {
         self.recording = false;
     }
 
-    pub fn start_shortcut_recording(&mut self) {
+    pub const fn start_shortcut_recording(&mut self) {
         self.recording_shortcut = true;
     }
 
-    pub fn stop_shortcut_recording(&mut self) {
+    pub const fn stop_shortcut_recording(&mut self) {
         self.recording_shortcut = false;
     }
 }

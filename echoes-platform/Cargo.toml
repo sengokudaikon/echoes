@@ -12,16 +12,19 @@ categories = ["os", "accessibility"]
 
 [dependencies]
 # Workspace dependencies
-thiserror = { workspace = true }
-tracing = { workspace = true }
+thiserror.workspace = true
+tracing.workspace = true
 
 # Platform-specific dependencies
 [target.'cfg(target_os = "macos")'.dependencies]
-mac-notification-sys = { workspace = true }
-core-foundation = { workspace = true }
+mac-notification-sys.workspace = true
+core-foundation.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { workspace = true }
+windows.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
-notify-rust = { workspace = true }
+notify-rust.workspace = true
+
+[lints]
+workspace = true

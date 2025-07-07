@@ -42,6 +42,15 @@ pub fn check_accessibility_permissions(_prompt: bool) -> bool {
     true
 }
 
+/// Ensures that the application has the required permissions to function.
+///
+/// On macOS, this checks and prompts for accessibility permissions if not
+/// already granted. On other platforms, this function returns `Ok(true)` as no
+/// special permissions are needed.
+///
+/// # Errors
+///
+/// Returns an error if the user denies accessibility permissions on macOS.
 pub fn ensure_permissions() -> Result<bool> {
     tracing::debug!("Checking system permissions");
 

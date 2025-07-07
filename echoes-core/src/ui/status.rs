@@ -16,13 +16,12 @@ pub fn render_status_section(ui: &mut egui::Ui, recording: bool, permissions_gra
 
 /// Renders error messages and permission-related UI
 pub fn render_error_section(
-    ui: &mut egui::Ui, error_message: &Option<String>, permissions_granted: bool, mut on_open_settings: impl FnMut(),
+    ui: &mut egui::Ui, error_message: Option<&String>, permissions_granted: bool, mut on_open_settings: impl FnMut(),
     mut on_retry_permissions: impl FnMut(),
 ) {
     if let Some(error) = error_message {
         ui.colored_label(egui::Color32::RED, format!("⚠️ {error}"));
 
-        // Add buttons for permissions
         if !permissions_granted {
             ui.horizontal(|ui| {
                 if ui.button("Open System Settings").clicked() {

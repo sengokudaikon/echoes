@@ -36,7 +36,7 @@ impl ConfigManager {
 
     /// Synchronous save for critical operations
     #[allow(dead_code)]
-    pub fn save_sync(&self, config: &Config) -> Result<()> {
+    pub fn save_sync(config: &Config) -> Result<()> {
         config
             .save()
             .map_err(|e| crate::error::EchoesError::Other(e.to_string()))

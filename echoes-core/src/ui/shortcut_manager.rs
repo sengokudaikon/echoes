@@ -7,7 +7,7 @@ pub struct ShortcutManager {
 }
 
 impl ShortcutManager {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             recorded_shortcut: None,
             show_visual_editor: false,
@@ -18,7 +18,7 @@ impl ShortcutManager {
         self.recorded_shortcut = Some(shortcut);
     }
 
-    pub fn take_recorded(&mut self) -> Option<RecordingShortcut> {
+    pub const fn take_recorded(&mut self) -> Option<RecordingShortcut> {
         self.recorded_shortcut.take()
     }
 
@@ -27,11 +27,11 @@ impl ShortcutManager {
     }
 
     #[allow(dead_code)]
-    pub fn toggle_visual_editor(&mut self) {
+    pub const fn toggle_visual_editor(&mut self) {
         self.show_visual_editor = !self.show_visual_editor;
     }
 
-    pub fn set_visual_editor(&mut self, show: bool) {
+    pub const fn set_visual_editor(&mut self, show: bool) {
         self.show_visual_editor = show;
     }
 }

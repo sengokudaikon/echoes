@@ -13,17 +13,14 @@ categories = ["os", "accessibility"]
 [dependencies]
 # Local workspace crates
 echoes-config = { path = "../echoes-config" }
-echoes-platform = { path = "../echoes-platform" }
 
 # Workspace dependencies
-tokio = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
+anyhow.workspace = true
+tracing.workspace = true
 
 # Keyboard-specific dependencies
-rdev = { git = "https://github.com/fufesou/rdev" }
-enigo = { workspace = true }
+rdev.workspace = true
+enigo.workspace = true
 
-[dev-dependencies]
-tempfile = "3.8"
+[lints]
+workspace = true

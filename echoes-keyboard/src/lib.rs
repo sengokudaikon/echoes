@@ -7,8 +7,6 @@ use anyhow::Result;
 use echoes_config::{KeyCode, RecordingShortcut, ShortcutMode};
 use rdev::{listen, Event, EventType};
 
-// Remove this line since we'll use tracing directly
-
 pub mod keys;
 use keys::rdev_key_to_keycode;
 
@@ -53,6 +51,7 @@ pub struct KeyboardListener {
 }
 
 impl KeyboardListener {
+    #[must_use]
     pub fn new(sender: mpsc::Sender<KeyboardEvent>, shortcut: RecordingShortcut) -> Self {
         Self {
             sender,
@@ -90,6 +89,12 @@ impl KeyboardListener {
         }
     }
 
+    /// Start listening for keyboard events in a background thread.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the keyboard listener thread cannot be started or if
+    /// platform permissions are insufficient.
     pub fn start_listening(&self) -> Result<()> {
         tracing::debug!("Starting keyboard listener thread");
 
@@ -103,7 +108,7 @@ impl KeyboardListener {
             let error_handler = ChannelErrorHandler { sender: sender.clone() };
 
             match listen(move |event| {
-                handle_event(event, &sender, &shortcut, &state);
+                handle_event(&event, &sender, &shortcut, &state);
             }) {
                 Ok(()) => {
                     tracing::debug!("Keyboard listener exited normally");
@@ -121,10 +126,9 @@ impl KeyboardListener {
 }
 
 fn handle_event(
-    event: Event, sender: &mpsc::Sender<KeyboardEvent>, shortcut: &Arc<Mutex<RecordingShortcut>>,
+    event: &Event, sender: &mpsc::Sender<KeyboardEvent>, shortcut: &Arc<Mutex<RecordingShortcut>>,
     state: &Arc<Mutex<ListenerState>>,
 ) {
-    // First check if we're in recording mode - if so, handle ONLY recording logic
     if let Ok(state_guard) = state.lock() {
         if state_guard.recording_shortcut {
             drop(state_guard); // Release the lock before processing
@@ -155,12 +159,12 @@ fn handle_event(
                                     }
                                 }
                                 ShortcutMode::Toggle => {
-                                    if !state.recording_active {
-                                        state.recording_active = true;
-                                        let _ = sender.send(KeyboardEvent::RecordingKeyPressed);
-                                    } else {
+                                    if state.recording_active {
                                         state.recording_active = false;
                                         let _ = sender.send(KeyboardEvent::RecordingKeyReleased);
+                                    } else {
+                                        state.recording_active = true;
+                                        let _ = sender.send(KeyboardEvent::RecordingKeyPressed);
                                     }
                                 }
                             }
@@ -197,7 +201,7 @@ fn handle_event(
     }
 }
 
-fn handle_recording_event(event: Event, sender: &mpsc::Sender<KeyboardEvent>, state: &Arc<Mutex<ListenerState>>) {
+fn handle_recording_event(event: &Event, sender: &mpsc::Sender<KeyboardEvent>, state: &Arc<Mutex<ListenerState>>) {
     match event.event_type {
         EventType::KeyPress(key) => {
             if let Some(keycode) = rdev_key_to_keycode(key) {
@@ -367,7 +371,12 @@ fn is_shortcut_active(pressed_keys: &[KeyCode], shortcut: &RecordingShortcut) ->
     true
 }
 
-// Text output functionality from existing code
+/// Type the given text using the system's text input mechanism.
+///
+/// # Errors
+///
+/// Returns an error if the text input system cannot be initialized or if text
+/// cannot be typed.
 #[allow(dead_code)]
 pub fn type_text(text: &str) -> Result<()> {
     use enigo::{Enigo, Keyboard, Settings};

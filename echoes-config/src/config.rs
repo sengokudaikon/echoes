@@ -10,30 +10,23 @@ use crate::{shortcuts::RecordingShortcut, ConfigError, Result};
 /// Main configuration structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    // STT Provider settings
     pub stt_provider: SttProvider,
 
-    // API Keys
     pub openai_api_key: Option<String>,
     pub groq_api_key: Option<String>,
 
-    // API URLs (for custom deployments)
     pub openai_base_url: Option<String>,
     pub groq_base_url: Option<String>,
 
-    // STT Provider specific settings
     pub openai_stt_model: Option<String>,
     pub openai_stt_prompt: Option<String>,
     pub groq_stt_model: Option<String>,
     pub groq_stt_prompt: Option<String>,
 
-    // Local Whisper settings (whisper-rs)
     pub local_whisper: LocalWhisperConfig,
 
-    // Recording settings
     pub recording_shortcut: RecordingShortcut,
 
-    // Post-processing
     pub post_processing: PostProcessingConfig,
 }
 
@@ -49,7 +42,7 @@ pub enum SttProvider {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocalWhisperConfig {
     pub model: WhisperModel,
-    pub model_path: Option<PathBuf>, // Custom model path, if not using auto-download
+    pub model_path: Option<PathBuf>,
 }
 
 /// Available Whisper models
@@ -116,6 +109,11 @@ impl Default for Config {
 
 impl Config {
     /// Load configuration from file or create default
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the config file cannot be read, parsed, or if the
+    /// default config cannot be saved.
     pub fn load() -> Result<Self> {
         let config_path = Self::config_path()?;
 
@@ -126,7 +124,6 @@ impl Config {
                 toml::from_str(&content).map_err(|e| ConfigError::ParseError(format!("Invalid config format: {e}")))?;
             Ok(config)
         } else {
-            // Create default config
             let config = Self::default();
             config.save()?;
             Ok(config)
@@ -134,10 +131,14 @@ impl Config {
     }
 
     /// Save configuration to file
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the config directory cannot be created or the config
+    /// file cannot be written.
     pub fn save(&self) -> Result<()> {
         let config_path = Self::config_path()?;
 
-        // Create directory if it doesn't exist
         if let Some(parent) = config_path.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| ConfigError::SaveFailed(format!("Failed to create config directory: {e}")))?;
@@ -152,17 +153,20 @@ impl Config {
     }
 
     /// Async version of save to avoid blocking the UI thread
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the config cannot be serialized, directory cannot be
+    /// created, or file cannot be written.
     pub async fn save_async(&self) -> Result<()> {
         let config_path = Self::config_path()?;
         let content = toml::to_string_pretty(self)
             .map_err(|e| ConfigError::SaveFailed(format!("Failed to serialize config: {e}")))?;
 
-        // Clone data to move into the blocking task
         let config_path = config_path.clone();
         let content = content.clone();
 
         tokio::task::spawn_blocking(move || {
-            // Create directory if it doesn't exist
             if let Some(parent) = config_path.parent() {
                 std::fs::create_dir_all(parent)
                     .map_err(|e| ConfigError::SaveFailed(format!("Failed to create config directory: {e}")))?;
@@ -186,13 +190,16 @@ impl Config {
     }
 
     /// Validate the entire configuration
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any configuration value is invalid, particularly
+    /// shortcut validation.
     pub fn validate(&self) -> Result<()> {
-        // Validate recording shortcut
         self.recording_shortcut
             .validate()
             .map_err(|e| ConfigError::ValidationError(e.to_string()))?;
 
-        // Add more validation as needed
         Ok(())
     }
 }

@@ -10,7 +10,7 @@ fmt:
 
 # Run clippy
 clippy:
-    cargo clippy --all-targets --all-features -- -D warnings
+    cargo clippy --all-targets --all-features -- -D warnings -A clippy::multiple_crate_versions
 
 # Run tests
 test:

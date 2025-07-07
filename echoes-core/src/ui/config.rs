@@ -2,7 +2,7 @@ use echoes_config::{Config, SttProvider};
 use eframe::egui;
 
 /// Configuration field types for form components
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 struct FieldConfig<'a> {
     label: &'a str,
     description: &'a str,
@@ -59,10 +59,7 @@ fn render_optional_text_field(
         ui.small(config.description);
 
         let mut temp_value = String::new();
-        let value_to_edit = match value {
-            Some(v) => v,
-            None => &mut temp_value,
-        };
+        let value_to_edit = value.as_mut().map_or(&mut temp_value, |v| v);
 
         let mut text_edit = egui::TextEdit::singleline(value_to_edit);
         if password {
@@ -89,17 +86,14 @@ fn render_optional_text_field(
 
 /// Functional component for optional multiline text field
 fn render_optional_multiline_field(
-    ui: &mut egui::Ui, config: FieldConfig, value: &mut Option<String>, rows: usize, mut on_change: impl FnMut(&str),
+    ui: &mut egui::Ui, config: &FieldConfig, value: &mut Option<String>, rows: usize, mut on_change: impl FnMut(&str),
 ) -> bool {
     ui.vertical(|ui| {
         ui.label(config.label);
         ui.small(config.description);
 
         let mut temp_value = String::new();
-        let value_to_edit = match value {
-            Some(v) => v,
-            None => &mut temp_value,
-        };
+        let value_to_edit = value.as_mut().map_or(&mut temp_value, |v| v);
 
         let mut text_edit = egui::TextEdit::multiline(value_to_edit).desired_rows(rows);
         if let Some(hint) = config.hint {
@@ -121,7 +115,7 @@ fn render_optional_multiline_field(
     .inner
 }
 
-/// Renders OpenAI STT provider configuration using functional components
+/// Renders `OpenAI` STT provider configuration using functional components
 fn render_openai_settings(ui: &mut egui::Ui, config: &mut Config, mut on_change: impl FnMut(&str)) -> bool {
     let mut changed = false;
 
@@ -166,7 +160,7 @@ fn render_openai_settings(ui: &mut egui::Ui, config: &mut Config, mut on_change:
 
     changed |= render_optional_multiline_field(
         ui,
-        FieldConfig {
+        &FieldConfig {
             label: "Prompt (optional):",
             description: "Helps guide transcription for specific context, terminology, or formatting",
             hint: Some("e.g., 'The following is a meeting transcript with technical terms...'"),
@@ -225,7 +219,7 @@ fn render_groq_settings(ui: &mut egui::Ui, config: &mut Config, mut on_change: i
 
     changed |= render_optional_multiline_field(
         ui,
-        FieldConfig {
+        &FieldConfig {
             label: "Prompt (optional):",
             description: "Helps guide transcription for specific context, terminology, or formatting",
             hint: Some("e.g., 'The following is a meeting transcript with technical terms...'"),
@@ -247,7 +241,7 @@ fn render_local_whisper_settings(ui: &mut egui::Ui, config: &mut Config, mut on_
         ui.label("Model:");
         ui.small("Select the Whisper model to use (larger models are more accurate but slower)");
 
-        let mut model_changed = false;
+        let model_changed = false;
         egui::ComboBox::from_label("Whisper Model")
             .selected_text(format!("{:?}", config.local_whisper.model))
             .show_ui(ui, |ui| {
@@ -318,13 +312,14 @@ fn render_local_whisper_settings(ui: &mut egui::Ui, config: &mut Config, mut on_
         ui.label("Model Path (optional):");
         ui.small("Custom path to a local model file (leave empty to auto-download)");
 
-        let mut temp_path = String::new();
-        let path_to_edit = match &config.local_whisper.model_path {
-            Some(path) => path.to_string_lossy().to_string(),
-            None => temp_path.clone(),
-        };
+        let temp_path = String::new();
+        let path_to_edit = config
+            .local_whisper
+            .model_path
+            .as_ref()
+            .map_or(temp_path, |path| path.to_string_lossy().to_string());
 
-        let mut path_input = path_to_edit.clone();
+        let mut path_input = path_to_edit;
         let response = ui.add(egui::TextEdit::singleline(&mut path_input).hint_text("/path/to/model.bin"));
 
         if response.changed() {

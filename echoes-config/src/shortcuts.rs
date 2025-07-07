@@ -126,12 +126,13 @@ impl RecordingShortcut {
     }
 
     /// Format shortcut for display
+    #[must_use]
     pub fn format_display(&self) -> String {
         let mut parts = Vec::new();
 
         // Add modifiers in a consistent order
         let mut sorted_modifiers = self.modifiers.clone();
-        sorted_modifiers.sort_by_key(modifier_sort_key);
+        sorted_modifiers.sort_by_key(|&key| modifier_sort_key(key));
 
         for modifier in &sorted_modifiers {
             parts.push(format_keycode(modifier));
@@ -144,6 +145,11 @@ impl RecordingShortcut {
     }
 
     /// Validate the shortcut
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the shortcut is invalid (e.g., unsupported keys,
+    /// invalid combinations).
     pub fn validate(&self) -> std::result::Result<(), crate::validation::ValidationError> {
         crate::validation::validate_shortcut(self)
     }
@@ -193,8 +199,8 @@ pub const fn normalize_modifier(key: &KeyCode) -> KeyCode {
 }
 
 /// Get sort key for modifier ordering
-const fn modifier_sort_key(key: &KeyCode) -> u8 {
-    match normalize_modifier(key) {
+const fn modifier_sort_key(key: KeyCode) -> u8 {
+    match normalize_modifier(&key) {
         KeyCode::ControlLeft => 1,
         KeyCode::ShiftLeft => 2,
         KeyCode::Alt | KeyCode::AltGr => 3,

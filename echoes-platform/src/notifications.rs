@@ -9,6 +9,12 @@ use notify_rust::Notification as LinuxNotification;
 use crate::PlatformError;
 use crate::Result;
 
+/// Sends a platform-specific notification with the given title and message.
+///
+/// # Errors
+///
+/// Returns an error if the notification system fails to send the notification.
+/// On Linux, this can occur if the notification daemon is not running.
 pub fn send_notification(title: &str, message: &str) -> Result<()> {
     #[cfg(target_os = "macos")]
     {
@@ -40,10 +46,20 @@ pub fn send_notification(title: &str, message: &str) -> Result<()> {
     }
 }
 
+/// Sends an error notification with the given error message.
+///
+/// # Errors
+///
+/// Returns an error if the underlying notification system fails.
 pub fn send_error_notification(error: &str) -> Result<()> {
     send_notification("Echoes Error", error)
 }
 
+/// Sends a success notification with the given message.
+///
+/// # Errors
+///
+/// Returns an error if the underlying notification system fails.
 pub fn send_success_notification(message: &str) -> Result<()> {
     send_notification("Echoes", message)
 }

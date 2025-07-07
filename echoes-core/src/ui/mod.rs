@@ -22,6 +22,7 @@ pub struct WhispoApp {
 }
 
 impl WhispoApp {
+    #[must_use]
     pub fn new(_cc: &eframe::CreationContext<'_>, config: Config) -> Self {
         Self {
             state: AppState::new(config),
@@ -171,7 +172,7 @@ impl WhispoApp {
             // Shortcut mode
             let mut mode_message = None;
             if shortcuts::render_shortcut_mode(ui, &mut self.state.config.recording_shortcut.mode, |msg| {
-                mode_message = Some(msg.to_string())
+                mode_message = Some(msg.to_string());
             }) {
                 if let Some(msg) = mode_message {
                     self.state.add_log(msg);
@@ -186,7 +187,7 @@ impl WhispoApp {
             let mut editor_message = None;
             let mut show_editor = self.state.show_visual_editor();
             if shortcuts::render_visual_editor(ui, &mut self.state.config.recording_shortcut, &mut show_editor, |msg| {
-                editor_message = Some(msg.to_string())
+                editor_message = Some(msg.to_string());
             }) {
                 if let Some(msg) = editor_message {
                     self.state.add_log(msg);

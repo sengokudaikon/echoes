@@ -6,9 +6,9 @@ use super::shortcut_editor::{ConflictDisplay, ShortcutBuilder, ShortcutEditor, S
 /// Context for shortcut operations
 #[allow(dead_code)]
 pub struct ShortcutContext<'a> {
-    pub config_shortcut: &'a mut RecordingShortcut,
-    pub recording_shortcut: &'a mut bool,
-    pub recorded_shortcut: &'a mut Option<RecordingShortcut>,
+    pub config: &'a mut RecordingShortcut,
+    pub is_recording: &'a mut bool,
+    pub recorded: &'a mut Option<RecordingShortcut>,
 }
 
 /// Renders the shortcut presets UI
@@ -43,13 +43,13 @@ pub fn render_shortcut_presets(ui: &mut egui::Ui, mut on_apply: impl FnMut(Recor
 #[allow(dead_code)]
 pub fn handle_shortcut_editor(ui: &mut egui::Ui, ctx: &mut ShortcutContext<'_>) -> ShortcutEditorAction {
     // Shortcut editor
-    let (_editor_response, editor_action) = ShortcutEditor::new(ctx.config_shortcut)
-        .recording(*ctx.recording_shortcut)
-        .with_recorded(ctx.recorded_shortcut.clone())
+    let (_editor_response, editor_action) = ShortcutEditor::new(ctx.config)
+        .recording(*ctx.is_recording)
+        .with_recorded(ctx.recorded.clone())
         .show(ui);
 
     // Show conflicts for current shortcut
-    let conflicts = ctx.config_shortcut.check_conflicts();
+    let conflicts = ctx.config.check_conflicts();
     ConflictDisplay::new(&conflicts).show(ui);
 
     editor_action

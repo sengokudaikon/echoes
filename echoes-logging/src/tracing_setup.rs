@@ -44,6 +44,13 @@ impl Default for TracingConfig {
 }
 
 /// Initialize the tracing system with comprehensive error tracking
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The log directory cannot be created
+/// - The log filter configuration is invalid
+/// - The tracing subscriber cannot be initialized
 pub fn init_tracing(config: &TracingConfig) -> Result<()> {
     // Create log directory if it doesn't exist
     if config.file_output {
@@ -253,13 +260,12 @@ pub fn setup_panic_handler() {
             |l| format!("{}:{}:{}", l.file(), l.line(), l.column()),
         );
 
-        let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
-            (*s).to_string()
-        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
-            s.clone()
-        } else {
-            "Unknown panic payload".to_string()
-        };
+        let message = panic_info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|s| (*s).to_string())
+            .or_else(|| panic_info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "Unknown panic payload".to_string());
 
         tracing::error!(
             panic.location = %location,
@@ -271,6 +277,11 @@ pub fn setup_panic_handler() {
 }
 
 /// Clean up old log files
+///
+/// # Errors
+///
+/// Returns an error if the log directory cannot be read or if files cannot be
+/// deleted.
 #[allow(dead_code)]
 pub fn cleanup_old_logs(log_dir: &PathBuf, days_to_keep: u32) -> Result<()> {
     let cutoff = chrono::Utc::now() - chrono::Duration::days(i64::from(days_to_keep));

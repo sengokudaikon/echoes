@@ -16,49 +16,17 @@ path = "src/lib.rs"
 
 [dependencies]
 # Local workspace crates
-echoes-config = { path = "../crates/echoes-config" }
-echoes-platform = { path = "../crates/echoes-platform" }
-echoes-audio = { path = "../crates/echoes-audio" }
-echoes-keyboard = { path = "../crates/echoes-keyboard" }
-echoes-stt = { path = "../crates/echoes-stt" }
-echoes-logging = { path = "../crates/echoes-logging" }
+echoes-config = { path = "../echoes-config" }
+echoes-platform = { path = "../echoes-platform" }
+echoes-audio = { path = "../echoes-audio" }
+echoes-keyboard = { path = "../echoes-keyboard" }
+echoes-logging = { path = "../echoes-logging" }
 
 # Workspace dependencies
-enigo = { workspace = true }
-tokio = { workspace = true }
-cpal = { workspace = true }
-hound = { workspace = true }
-voice_activity_detector = { workspace = true }
-rubato = { workspace = true }
-ort-sys = { workspace = true }
-ort = { workspace = true }
-whisper-rs = { workspace = true }
-reqwest = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-toml = { workspace = true }
-tray-icon = { workspace = true }
-directories = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-tracing-appender = { workspace = true }
-clap = { workspace = true }
-chrono = { workspace = true }
-eframe = { workspace = true }
-egui = { workspace = true }
+tokio.workspace = true
+eframe.workspace = true
+egui.workspace = true
+chrono.workspace = true
 
-# Non-workspace dependencies
-rdev = { git = "https://github.com/fufesou/rdev" }
-
-# Platform-specific dependencies
-[target.'cfg(target_os = "macos")'.dependencies]
-mac-notification-sys = { workspace = true }
-core-foundation = { workspace = true }
-
-[target.'cfg(target_os = "windows")'.dependencies]
-windows = { workspace = true }
-
-[target.'cfg(target_os = "linux")'.dependencies]
-notify-rust = { workspace = true }
+[lints]
+workspace = true

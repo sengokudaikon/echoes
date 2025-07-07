@@ -1,17 +1,22 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/echoes-config",
-    "crates/echoes-platform",
-    "crates/echoes-audio",
-    "crates/echoes-keyboard",
-    "crates/echoes-stt",
-    "crates/echoes-logging",
+    "echoes-config",
+    "echoes-platform",
+    "echoes-audio",
+    "echoes-keyboard",
+    "echoes-stt",
+    "echoes-logging",
     "echoes-core",
     "echoes-bin",
 ]
 
+[workspace.lints.clippy]
+multiple_crate_versions = "allow"
+
 [workspace.dependencies]
+echoes-config = {path = "echoes-config"}
+echoes-platform = {path = "echoes-platform"}
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 
@@ -48,7 +53,7 @@ ort = { version = "=2.0.0-rc.9" }
 whisper-rs = "0.14"
 
 # Keyboard and automation (for core crate)
-rdev = { git = "https://github.com/fufesou/rdev" }
+rdev = "0.5.3"
 enigo = "0.5.0"
 
 # UI Framework (for ui crate)

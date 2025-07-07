@@ -12,11 +12,14 @@ categories = ["multimedia::audio", "accessibility"]
 
 [dependencies]
 # Workspace dependencies
-thiserror = { workspace = true }
-tracing = { workspace = true }
+thiserror.workspace = true
+tracing.workspace = true
 
 # Audio-specific dependencies
-cpal = { workspace = true }
-hound = { workspace = true }
-voice_activity_detector = { workspace = true }
-rubato = { workspace = true }
+cpal.workspace = true
+hound.workspace = true
+voice_activity_detector.workspace = true
+rubato.workspace = true
+
+[lints]
+workspace = true

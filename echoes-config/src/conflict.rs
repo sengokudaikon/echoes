@@ -10,9 +10,9 @@ use crate::shortcuts::{KeyCode, RecordingShortcut};
 /// Severity level for shortcut conflicts
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConflictSeverity {
-    Error,   // System shortcut that cannot be overridden
-    Warning, // Common application shortcut
-    Info,    // Potential conflict with specific apps
+    Error,
+    Warning,
+    Info,
 }
 
 /// Information about a shortcut conflict
