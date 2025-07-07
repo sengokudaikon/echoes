@@ -1,8 +1,7 @@
-use std::sync::mpsc;
+use std::{sync::mpsc, thread};
 
 use echoes_config::Config;
 use echoes_logging::error;
-use tokio::task;
 
 use crate::error::Result;
 
@@ -15,10 +14,10 @@ impl ConfigManager {
     pub fn new() -> Self {
         let (save_tx, save_rx) = mpsc::channel::<Config>();
 
-        // Spawn a background task to handle config saves
-        task::spawn(async move {
+        // Spawn a background thread to handle config saves
+        thread::spawn(move || {
             while let Ok(config) = save_rx.recv() {
-                if let Err(e) = config.save_async().await {
+                if let Err(e) = config.save() {
                     error!("Failed to save config: {e}");
                 }
             }

@@ -1,5 +1,6 @@
 use echoes_config::Config;
 use eframe::egui;
+use tracing::info;
 
 pub mod error;
 pub mod ui;
@@ -15,7 +16,7 @@ use error::{EchoesError, Result, UiError};
 /// - Configuration cannot be loaded
 /// - UI initialization fails
 /// - eframe native window creation fails
-pub fn run() -> Result<()> {
+pub async fn run() -> Result<()> {
     setup_panic_handler();
 
     let tracing_config = TracingConfig::default();
@@ -31,10 +32,15 @@ pub fn run() -> Result<()> {
         ..Default::default()
     };
 
+    info!("About to initialize eframe");
+
     eframe::run_native(
         "Whispo",
         native_options,
-        Box::new(|cc| Ok(Box::new(ui::WhispoApp::new(cc, config)))),
+        Box::new(|cc| {
+            info!("Creating WhispoApp");
+            Ok(Box::new(ui::WhispoApp::new(cc, config)))
+        }),
     )
     .map_err(|e| UiError::InitializationFailed(e.to_string()).into())
 }

@@ -129,6 +129,11 @@ impl AudioRecorder {
             }
         }
 
+        // Recreate the ring buffer for the next recording
+        let (producer, consumer) = RingBuffer::new(self.ring_buffer_capacity);
+        self.ring_buffer_producer = Some(producer);
+        self.ring_buffer_consumer = Some(consumer);
+
         Ok(samples)
     }
 

@@ -20,6 +20,7 @@ echoes-core = { path = "../echoes-core" }
 
 # Workspace dependencies
 anyhow.workspace = true
+tokio = { workspace = true, features = ["macros"] }
 
 [lints]
 workspace = true

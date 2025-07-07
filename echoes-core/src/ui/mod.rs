@@ -1,5 +1,6 @@
 use echoes_config::Config;
 use eframe::egui;
+use tracing::info;
 
 mod shortcut_editor;
 use shortcut_editor::ShortcutEditorAction;
@@ -24,9 +25,11 @@ pub struct WhispoApp {
 impl WhispoApp {
     #[must_use]
     pub fn new(_cc: &eframe::CreationContext<'_>, config: Config) -> Self {
-        Self {
-            state: AppState::new(config),
-        }
+        info!("WhispoApp::new called");
+        info!("About to create AppState");
+        let state = AppState::new(config);
+        info!("AppState created successfully");
+        Self { state }
     }
 
     fn handle_shortcut_action(&mut self, action: ShortcutEditorAction) {

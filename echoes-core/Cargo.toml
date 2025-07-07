@@ -27,6 +27,7 @@ tokio.workspace = true
 eframe.workspace = true
 egui.workspace = true
 chrono.workspace = true
+tracing.workspace = true
 
 [lints]
 workspace = true

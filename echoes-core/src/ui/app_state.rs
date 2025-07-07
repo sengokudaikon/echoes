@@ -1,6 +1,7 @@
 use echoes_audio::AudioRecorder;
 use echoes_config::{Config, RecordingShortcut, ShortcutMode};
 use echoes_keyboard::KeyboardEvent;
+use tracing::info;
 
 use super::{
     config_manager::ConfigManager, keyboard_manager::KeyboardManager, session_manager::SessionManager,
@@ -34,18 +35,36 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(config: Config) -> Self {
+        info!("AppState::new called");
+        info!("Creating ConfigManager");
+        let config_manager = ConfigManager::new();
+        info!("ConfigManager created");
+
+        info!("Creating KeyboardManager");
+        let keyboard_manager = KeyboardManager::new();
+        info!("KeyboardManager created");
+
+        info!("Creating other managers");
+        let session_manager = SessionManager::new();
+        let shortcut_manager = ShortcutManager::new();
+        let system_manager = SystemManager::new();
+        let audio_recorder = AudioRecorder::new();
+        info!("All managers created");
+
         let mut state = Self {
             config,
-            config_manager: ConfigManager::new(),
-            keyboard_manager: KeyboardManager::new(),
-            session_manager: SessionManager::new(),
-            shortcut_manager: ShortcutManager::new(),
-            system_manager: SystemManager::new(),
-            audio_recorder: AudioRecorder::new(),
+            config_manager,
+            keyboard_manager,
+            session_manager,
+            shortcut_manager,
+            system_manager,
+            audio_recorder,
         };
 
+        info!("About to initialize keyboard listener");
         // Initialize keyboard listener
         state.init_keyboard_listener();
+        info!("Keyboard listener initialized");
         state
     }
 

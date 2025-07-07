@@ -53,7 +53,7 @@ ort = { version = "=2.0.0-rc.9" }
 whisper-rs = "0.14"
 
 # Keyboard and automation (for core crate)
-rdev = "0.5.3"
+rdev = { git = "https://github.com/fufesou/rdev" }
 enigo = "0.5.0"
 
 # UI Framework (for ui crate)
