@@ -1,6 +1,15 @@
 use echoes_config::{Config, SttProvider};
 use eframe::egui;
 
+/// Configuration field types for form components
+#[derive(Debug, Clone)]
+struct FieldConfig<'a> {
+    label: &'a str,
+    description: &'a str,
+    hint: Option<&'a str>,
+    change_message: &'a str,
+}
+
 /// Renders the STT provider configuration UI
 pub fn render_stt_provider_config(ui: &mut egui::Ui, config: &mut Config, mut on_change: impl FnMut(&str)) -> bool {
     let mut changed = false;
@@ -24,16 +33,15 @@ pub fn render_stt_provider_config(ui: &mut egui::Ui, config: &mut Config, mut on
                 on_change("Changed STT provider to Groq");
                 changed = true;
             }
-            #[cfg(target_os = "macos")]
             if ui
                 .radio(
-                    matches!(config.stt_provider, SttProvider::LightningWhisper),
-                    "Lightning Whisper",
+                    matches!(config.stt_provider, SttProvider::LocalWhisper),
+                    "Local Whisper",
                 )
                 .clicked()
             {
-                config.stt_provider = SttProvider::LightningWhisper;
-                on_change("Changed STT provider to Lightning Whisper");
+                config.stt_provider = SttProvider::LocalWhisper;
+                on_change("Changed STT provider to Local Whisper");
                 changed = true;
             }
         });
@@ -42,188 +50,307 @@ pub fn render_stt_provider_config(ui: &mut egui::Ui, config: &mut Config, mut on
     changed
 }
 
-/// Renders the API keys configuration UI
-pub fn render_api_keys_config(ui: &mut egui::Ui, config: &mut Config, mut on_change: impl FnMut(&str)) -> bool {
+/// Functional component for optional text field with change tracking
+fn render_optional_text_field(
+    ui: &mut egui::Ui, config: FieldConfig, value: &mut Option<String>, password: bool, mut on_change: impl FnMut(&str),
+) -> bool {
+    ui.vertical(|ui| {
+        ui.label(config.label);
+        ui.small(config.description);
+
+        let mut temp_value = String::new();
+        let value_to_edit = match value {
+            Some(v) => v,
+            None => &mut temp_value,
+        };
+
+        let mut text_edit = egui::TextEdit::singleline(value_to_edit);
+        if password {
+            text_edit = text_edit.password(true);
+        }
+        if let Some(hint) = config.hint {
+            text_edit = text_edit.hint_text(hint);
+        }
+
+        let response = ui.add(text_edit);
+        if response.changed() {
+            if value_to_edit.is_empty() {
+                *value = None;
+            } else if value.is_none() {
+                *value = Some(temp_value);
+            }
+            on_change(config.change_message);
+            return true;
+        }
+        false
+    })
+    .inner
+}
+
+/// Functional component for optional multiline text field
+fn render_optional_multiline_field(
+    ui: &mut egui::Ui, config: FieldConfig, value: &mut Option<String>, rows: usize, mut on_change: impl FnMut(&str),
+) -> bool {
+    ui.vertical(|ui| {
+        ui.label(config.label);
+        ui.small(config.description);
+
+        let mut temp_value = String::new();
+        let value_to_edit = match value {
+            Some(v) => v,
+            None => &mut temp_value,
+        };
+
+        let mut text_edit = egui::TextEdit::multiline(value_to_edit).desired_rows(rows);
+        if let Some(hint) = config.hint {
+            text_edit = text_edit.hint_text(hint);
+        }
+
+        let response = ui.add(text_edit);
+        if response.changed() {
+            if value_to_edit.is_empty() {
+                *value = None;
+            } else if value.is_none() {
+                *value = Some(temp_value);
+            }
+            on_change(config.change_message);
+            return true;
+        }
+        false
+    })
+    .inner
+}
+
+/// Renders OpenAI STT provider configuration using functional components
+fn render_openai_settings(ui: &mut egui::Ui, config: &mut Config, mut on_change: impl FnMut(&str)) -> bool {
     let mut changed = false;
 
-    ui.group(|ui| {
-        ui.label("API Keys:");
+    changed |= render_optional_text_field(
+        ui,
+        FieldConfig {
+            label: "API Key:",
+            description: "Your OpenAI API key",
+            hint: None,
+            change_message: "Updated OpenAI API key",
+        },
+        &mut config.openai_api_key,
+        true,
+        &mut on_change,
+    );
 
-        ui.horizontal(|ui| {
-            ui.label("OpenAI:");
-            let mut temp_key = String::new();
-            let key_to_edit = match &mut config.openai_api_key {
-                Some(key) => key,
-                None => &mut temp_key,
-            };
+    changed |= render_optional_text_field(
+        ui,
+        FieldConfig {
+            label: "Base URL:",
+            description: "Default: https://api.openai.com/v1 (leave empty for default)",
+            hint: Some("https://api.openai.com/v1"),
+            change_message: "Updated OpenAI base URL",
+        },
+        &mut config.openai_base_url,
+        false,
+        &mut on_change,
+    );
 
-            if ui.text_edit_singleline(key_to_edit).changed() {
-                if key_to_edit.is_empty() {
-                    config.openai_api_key = None;
-                } else if config.openai_api_key.is_none() {
-                    config.openai_api_key = Some(temp_key);
-                }
-                on_change("Updated OpenAI API key");
-                changed = true;
+    changed |= render_optional_text_field(
+        ui,
+        FieldConfig {
+            label: "Model:",
+            description: "Default: whisper-1 (available: whisper-1)",
+            hint: Some("whisper-1"),
+            change_message: "Updated OpenAI STT model",
+        },
+        &mut config.openai_stt_model,
+        false,
+        &mut on_change,
+    );
+
+    changed |= render_optional_multiline_field(
+        ui,
+        FieldConfig {
+            label: "Prompt (optional):",
+            description: "Helps guide transcription for specific context, terminology, or formatting",
+            hint: Some("e.g., 'The following is a meeting transcript with technical terms...'"),
+            change_message: "Updated OpenAI STT prompt",
+        },
+        &mut config.openai_stt_prompt,
+        3,
+        &mut on_change,
+    );
+
+    changed
+}
+
+/// Renders Groq STT provider configuration using functional components
+fn render_groq_settings(ui: &mut egui::Ui, config: &mut Config, mut on_change: impl FnMut(&str)) -> bool {
+    let mut changed = false;
+
+    changed |= render_optional_text_field(
+        ui,
+        FieldConfig {
+            label: "API Key:",
+            description: "Your Groq API key",
+            hint: None,
+            change_message: "Updated Groq API key",
+        },
+        &mut config.groq_api_key,
+        true,
+        &mut on_change,
+    );
+
+    changed |= render_optional_text_field(
+        ui,
+        FieldConfig {
+            label: "Base URL:",
+            description: "Default: https://api.groq.com/openai/v1 (leave empty for default)",
+            hint: Some("https://api.groq.com/openai/v1"),
+            change_message: "Updated Groq base URL",
+        },
+        &mut config.groq_base_url,
+        false,
+        &mut on_change,
+    );
+
+    changed |= render_optional_text_field(
+        ui,
+        FieldConfig {
+            label: "Model:",
+            description: "Default: whisper-large-v3 (available: whisper-large-v3, distil-whisper-large-v3-en)",
+            hint: Some("whisper-large-v3"),
+            change_message: "Updated Groq STT model",
+        },
+        &mut config.groq_stt_model,
+        false,
+        &mut on_change,
+    );
+
+    changed |= render_optional_multiline_field(
+        ui,
+        FieldConfig {
+            label: "Prompt (optional):",
+            description: "Helps guide transcription for specific context, terminology, or formatting",
+            hint: Some("e.g., 'The following is a meeting transcript with technical terms...'"),
+            change_message: "Updated Groq STT prompt",
+        },
+        &mut config.groq_stt_prompt,
+        3,
+        &mut on_change,
+    );
+
+    changed
+}
+
+/// Renders Local Whisper STT provider configuration
+fn render_local_whisper_settings(ui: &mut egui::Ui, config: &mut Config, mut on_change: impl FnMut(&str)) -> bool {
+    let mut changed = false;
+
+    ui.vertical(|ui| {
+        ui.label("Model:");
+        ui.small("Select the Whisper model to use (larger models are more accurate but slower)");
+
+        let mut model_changed = false;
+        egui::ComboBox::from_label("Whisper Model")
+            .selected_text(format!("{:?}", config.local_whisper.model))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(
+                    &mut config.local_whisper.model,
+                    echoes_config::WhisperModel::Tiny,
+                    "Tiny",
+                );
+                ui.selectable_value(
+                    &mut config.local_whisper.model,
+                    echoes_config::WhisperModel::TinyEn,
+                    "Tiny (English)",
+                );
+                ui.selectable_value(
+                    &mut config.local_whisper.model,
+                    echoes_config::WhisperModel::Base,
+                    "Base",
+                );
+                ui.selectable_value(
+                    &mut config.local_whisper.model,
+                    echoes_config::WhisperModel::BaseEn,
+                    "Base (English)",
+                );
+                ui.selectable_value(
+                    &mut config.local_whisper.model,
+                    echoes_config::WhisperModel::Small,
+                    "Small",
+                );
+                ui.selectable_value(
+                    &mut config.local_whisper.model,
+                    echoes_config::WhisperModel::SmallEn,
+                    "Small (English)",
+                );
+                ui.selectable_value(
+                    &mut config.local_whisper.model,
+                    echoes_config::WhisperModel::Medium,
+                    "Medium",
+                );
+                ui.selectable_value(
+                    &mut config.local_whisper.model,
+                    echoes_config::WhisperModel::MediumEn,
+                    "Medium (English)",
+                );
+                ui.selectable_value(
+                    &mut config.local_whisper.model,
+                    echoes_config::WhisperModel::LargeV1,
+                    "Large V1",
+                );
+                ui.selectable_value(
+                    &mut config.local_whisper.model,
+                    echoes_config::WhisperModel::LargeV2,
+                    "Large V2",
+                );
+                ui.selectable_value(
+                    &mut config.local_whisper.model,
+                    echoes_config::WhisperModel::LargeV3,
+                    "Large V3",
+                );
+            });
+
+        if model_changed {
+            on_change("Updated Local Whisper model");
+            changed = true;
+        }
+    });
+
+    ui.vertical(|ui| {
+        ui.label("Model Path (optional):");
+        ui.small("Custom path to a local model file (leave empty to auto-download)");
+
+        let mut temp_path = String::new();
+        let path_to_edit = match &config.local_whisper.model_path {
+            Some(path) => path.to_string_lossy().to_string(),
+            None => temp_path.clone(),
+        };
+
+        let mut path_input = path_to_edit.clone();
+        let response = ui.add(egui::TextEdit::singleline(&mut path_input).hint_text("/path/to/model.bin"));
+
+        if response.changed() {
+            if path_input.is_empty() {
+                config.local_whisper.model_path = None;
+            } else {
+                config.local_whisper.model_path = Some(std::path::PathBuf::from(path_input));
             }
-        });
-
-        ui.horizontal(|ui| {
-            ui.label("Groq:");
-            let mut temp_key = String::new();
-            let key_to_edit = match &mut config.groq_api_key {
-                Some(key) => key,
-                None => &mut temp_key,
-            };
-
-            if ui.text_edit_singleline(key_to_edit).changed() {
-                if key_to_edit.is_empty() {
-                    config.groq_api_key = None;
-                } else if config.groq_api_key.is_none() {
-                    config.groq_api_key = Some(temp_key);
-                }
-                on_change("Updated Groq API key");
-                changed = true;
-            }
-        });
+            on_change("Updated Local Whisper model path");
+            changed = true;
+        }
     });
 
     changed
 }
 
 /// Renders the STT provider-specific configuration UI
-pub fn render_stt_provider_settings(ui: &mut egui::Ui, config: &mut Config, mut on_change: impl FnMut(&str)) -> bool {
-    let mut changed = false;
-
+pub fn render_stt_provider_settings(ui: &mut egui::Ui, config: &mut Config, on_change: impl FnMut(&str)) -> bool {
     ui.group(|ui| {
         ui.label("STT Provider Settings:");
 
         match config.stt_provider {
-            SttProvider::OpenAI => {
-                ui.horizontal(|ui| {
-                    ui.label("Base URL:");
-                    let mut temp_url = String::new();
-                    let url_to_edit = match &mut config.openai_base_url {
-                        Some(url) => url,
-                        None => &mut temp_url,
-                    };
-
-                    if ui.text_edit_singleline(url_to_edit).changed() {
-                        if url_to_edit.is_empty() {
-                            config.openai_base_url = None;
-                        } else if config.openai_base_url.is_none() {
-                            config.openai_base_url = Some(temp_url);
-                        }
-                        on_change("Updated OpenAI base URL");
-                        changed = true;
-                    }
-                });
-
-                ui.horizontal(|ui| {
-                    ui.label("Model:");
-                    let mut temp_model = String::new();
-                    let model_to_edit = match &mut config.openai_stt_model {
-                        Some(model) => model,
-                        None => &mut temp_model,
-                    };
-
-                    if ui.text_edit_singleline(model_to_edit).changed() {
-                        if model_to_edit.is_empty() {
-                            config.openai_stt_model = None;
-                        } else if config.openai_stt_model.is_none() {
-                            config.openai_stt_model = Some(temp_model);
-                        }
-                        on_change("Updated OpenAI STT model");
-                        changed = true;
-                    }
-                });
-
-                ui.horizontal(|ui| {
-                    ui.label("Prompt:");
-                    let mut temp_prompt = String::new();
-                    let prompt_to_edit = match &mut config.openai_stt_prompt {
-                        Some(prompt) => prompt,
-                        None => &mut temp_prompt,
-                    };
-
-                    if ui.text_edit_multiline(prompt_to_edit).changed() {
-                        if prompt_to_edit.is_empty() {
-                            config.openai_stt_prompt = None;
-                        } else if config.openai_stt_prompt.is_none() {
-                            config.openai_stt_prompt = Some(temp_prompt);
-                        }
-                        on_change("Updated OpenAI STT prompt");
-                        changed = true;
-                    }
-                });
-            }
-            SttProvider::Groq => {
-                ui.horizontal(|ui| {
-                    ui.label("Base URL:");
-                    let mut temp_url = String::new();
-                    let url_to_edit = match &mut config.groq_base_url {
-                        Some(url) => url,
-                        None => &mut temp_url,
-                    };
-
-                    if ui.text_edit_singleline(url_to_edit).changed() {
-                        if url_to_edit.is_empty() {
-                            config.groq_base_url = None;
-                        } else if config.groq_base_url.is_none() {
-                            config.groq_base_url = Some(temp_url);
-                        }
-                        on_change("Updated Groq base URL");
-                        changed = true;
-                    }
-                });
-
-                ui.horizontal(|ui| {
-                    ui.label("Model:");
-                    let mut temp_model = String::new();
-                    let model_to_edit = match &mut config.groq_stt_model {
-                        Some(model) => model,
-                        None => &mut temp_model,
-                    };
-
-                    if ui.text_edit_singleline(model_to_edit).changed() {
-                        if model_to_edit.is_empty() {
-                            config.groq_stt_model = None;
-                        } else if config.groq_stt_model.is_none() {
-                            config.groq_stt_model = Some(temp_model);
-                        }
-                        on_change("Updated Groq STT model");
-                        changed = true;
-                    }
-                });
-
-                ui.horizontal(|ui| {
-                    ui.label("Prompt:");
-                    let mut temp_prompt = String::new();
-                    let prompt_to_edit = match &mut config.groq_stt_prompt {
-                        Some(prompt) => prompt,
-                        None => &mut temp_prompt,
-                    };
-
-                    if ui.text_edit_multiline(prompt_to_edit).changed() {
-                        if prompt_to_edit.is_empty() {
-                            config.groq_stt_prompt = None;
-                        } else if config.groq_stt_prompt.is_none() {
-                            config.groq_stt_prompt = Some(temp_prompt);
-                        }
-                        on_change("Updated Groq STT prompt");
-                        changed = true;
-                    }
-                });
-            }
-            SttProvider::LocalWhisper => {
-                ui.label("Local Whisper settings will be added here");
-            }
-            #[cfg(target_os = "macos")]
-            SttProvider::LightningWhisper => {
-                ui.label("Lightning Whisper settings will be added here");
-            }
+            SttProvider::OpenAI => render_openai_settings(ui, config, on_change),
+            SttProvider::Groq => render_groq_settings(ui, config, on_change),
+            SttProvider::LocalWhisper => render_local_whisper_settings(ui, config, on_change),
         }
-    });
-
-    changed
+    })
+    .inner
 }
