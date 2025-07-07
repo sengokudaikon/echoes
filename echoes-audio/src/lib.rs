@@ -33,7 +33,6 @@ impl Default for AudioRecorder {
 impl AudioRecorder {
     #[must_use]
     pub fn new() -> Self {
-        // Calculate ring buffer capacity: 5 minutes * 16000 samples/sec = 4.8M samples
         let ring_buffer_capacity = 300 * 16000;
         let (producer, consumer) = RingBuffer::new(ring_buffer_capacity);
 
@@ -43,7 +42,7 @@ impl AudioRecorder {
             stream: None,
             use_vad: true,
             sample_rate: 16000,
-            max_duration_seconds: 300, // 5 minutes default
+            max_duration_seconds: 300,
             ring_buffer_capacity,
         }
     }
@@ -51,7 +50,6 @@ impl AudioRecorder {
     /// Create a new recorder with VAD disabled
     #[must_use]
     pub fn new_without_vad() -> Self {
-        // Calculate ring buffer capacity: 5 minutes * 16000 samples/sec = 4.8M samples
         let ring_buffer_capacity = 300 * 16000;
         let (producer, consumer) = RingBuffer::new(ring_buffer_capacity);
 
@@ -61,7 +59,7 @@ impl AudioRecorder {
             stream: None,
             use_vad: false,
             sample_rate: 16000,
-            max_duration_seconds: 300, // 5 minutes default
+            max_duration_seconds: 300,
             ring_buffer_capacity,
         }
     }
@@ -74,7 +72,6 @@ impl AudioRecorder {
     /// Set maximum recording duration in seconds
     pub fn set_max_duration(&mut self, seconds: u32) {
         self.max_duration_seconds = seconds;
-        // Recreate ring buffer with new capacity
         let ring_buffer_capacity = (seconds as usize) * (self.sample_rate as usize);
         let (producer, consumer) = RingBuffer::new(ring_buffer_capacity);
         self.ring_buffer_producer = Some(producer);
@@ -89,16 +86,50 @@ impl AudioRecorder {
     /// Returns an error if the ring buffer operations fail
     pub fn clear_buffer(&mut self) -> Result<()> {
         if let Some(ref mut consumer) = self.ring_buffer_consumer {
-            // Consume all available samples
             while let Ok(chunk) = consumer.read_chunk(consumer.slots()) {
                 if chunk.is_empty() {
                     break;
                 }
-                // Simply drop the chunk to clear the buffer
                 chunk.commit_all();
             }
         }
         Ok(())
+    }
+
+    /// Stop the audio stream and collect all samples from the ring buffer
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Stream pause fails
+    /// - Ring buffer consumer is not available
+    fn stop_and_collect_samples(&mut self) -> Result<Vec<f32>> {
+        // Explicitly pause the stream before dropping it
+        if let Some(stream) = &self.stream {
+            stream
+                .pause()
+                .map_err(|e| AudioError::StreamCreationFailed(format!("Failed to pause stream: {e}")))?;
+        }
+
+        // Stop and drop the stream
+        self.stream = None;
+
+        // Collect all samples from the ring buffer
+        let mut samples = Vec::new();
+        if let Some(ref mut consumer) = self.ring_buffer_consumer {
+            while let Ok(chunk) = consumer.read_chunk(consumer.slots()) {
+                if chunk.is_empty() {
+                    break;
+                }
+                // Copy data from the chunk to our samples Vec
+                let (first_slice, second_slice) = chunk.as_slices();
+                samples.extend_from_slice(first_slice);
+                samples.extend_from_slice(second_slice);
+                chunk.commit_all();
+            }
+        }
+
+        Ok(samples)
     }
 
     /// Start audio recording from the default input device
@@ -153,87 +184,41 @@ impl AudioRecorder {
         Ok(())
     }
 
-    /// Stop audio recording and return raw WAV data
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if:
-    /// - Ring buffer consumer is not available
-    /// - WAV encoding fails
-    /// - Stream stop fails
-    pub fn stop_recording(&mut self) -> Result<Vec<u8>> {
-        // Explicitly pause the stream before dropping it
-        if let Some(stream) = &self.stream {
-            stream
-                .pause()
-                .map_err(|e| AudioError::StreamCreationFailed(format!("Failed to pause stream: {e}")))?;
-        }
-
-        // Stop and drop the stream
-        self.stream = None;
-
-        // Collect all samples from the ring buffer
-        let mut samples = Vec::new();
-        if let Some(ref mut consumer) = self.ring_buffer_consumer {
-            while let Ok(chunk) = consumer.read_chunk(consumer.slots()) {
-                if chunk.is_empty() {
-                    break;
-                }
-                // Copy data from the chunk to our samples Vec
-                let (first_slice, second_slice) = chunk.as_slices();
-                samples.extend_from_slice(first_slice);
-                samples.extend_from_slice(second_slice);
-                chunk.commit_all();
-            }
-        }
-
-        // Convert to WAV
-        self.samples_to_wav(&samples)
-    }
-
-    /// Stop recording and return both raw audio and VAD-processed segments
+    /// Stop audio recording and return results based on VAD setting
     ///
     /// Returns a tuple containing:
     /// - Raw WAV data of the entire recording
-    /// - Vector of WAV data for each detected speech segment
+    /// - Vector of WAV data for each detected speech segment (empty if VAD is
+    ///   disabled)
     ///
     /// # Errors
     ///
     /// Returns an error if:
     /// - Ring buffer consumer is not available
     /// - WAV encoding fails
-    /// - VAD processing fails
-    /// - Audio resampling fails
+    /// - VAD processing fails (if VAD is enabled)
+    /// - Audio resampling fails (if VAD is enabled)
     /// - Stream stop fails
-    pub fn stop_recording_with_vad(&mut self) -> Result<(Vec<u8>, Vec<Vec<u8>>)> {
-        // Explicitly pause the stream before dropping it
-        if let Some(stream) = &self.stream {
-            stream
-                .pause()
-                .map_err(|e| AudioError::StreamCreationFailed(format!("Failed to pause stream: {e}")))?;
-        }
+    pub fn stop_recording(&mut self) -> Result<(Vec<u8>, Vec<Vec<u8>>)> {
+        let samples = self.stop_and_collect_samples()?;
 
-        // Stop and drop the stream
-        self.stream = None;
-
-        // Collect all samples from the ring buffer
-        let mut samples = Vec::new();
-        if let Some(ref mut consumer) = self.ring_buffer_consumer {
-            while let Ok(chunk) = consumer.read_chunk(consumer.slots()) {
-                if chunk.is_empty() {
-                    break;
-                }
-                // Copy data from the chunk to our samples Vec
-                let (first_slice, second_slice) = chunk.as_slices();
-                samples.extend_from_slice(first_slice);
-                samples.extend_from_slice(second_slice);
-                chunk.commit_all();
-            }
-        }
-
-        // First create the raw WAV
+        // Always create the raw WAV
         let raw_wav = self.samples_to_wav(&samples)?;
 
+        if self.use_vad {
+            let vad_segments = self.process_samples_with_vad(samples)?;
+            Ok((raw_wav, vad_segments))
+        } else {
+            Ok((raw_wav, Vec::new())) // Empty segments when VAD is disabled
+        }
+    }
+
+    /// Process samples with VAD and return speech segments as WAV data
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if VAD processing or WAV encoding fails
+    fn process_samples_with_vad(&mut self, samples: Vec<f32>) -> Result<Vec<Vec<u8>>> {
         // Resample to 16kHz if needed for VAD
         let samples_16k = if self.sample_rate == 16000 {
             samples
@@ -266,7 +251,7 @@ impl AudioRecorder {
 
         self.sample_rate = original_rate; // Restore original rate
 
-        Ok((raw_wav, wav_segments))
+        Ok(wav_segments)
     }
 
     /// Resample audio from current sample rate to 16kHz
@@ -345,23 +330,18 @@ impl AudioRecorder {
             .build_input_stream(
                 config,
                 move |data: &[T], _: &cpal::InputCallbackInfo| {
-                    // Convert samples to f32
                     let samples: Vec<f32> = data.iter().map(|sample| sample.to_sample::<f32>()).collect();
 
-                    // Try to write samples to the ring buffer
                     if let Ok(mut chunk) = producer.write_chunk_uninit(samples.len()) {
-                        // Copy samples to the ring buffer
                         let mut write_pos = 0;
                         let (first_slice, second_slice) = chunk.as_mut_slices();
 
-                        // Fill first slice
                         let first_len = first_slice.len().min(samples.len() - write_pos);
                         for i in 0..first_len {
                             first_slice[i].write(samples[write_pos + i]);
                         }
                         write_pos += first_len;
 
-                        // Fill second slice if needed
                         if write_pos < samples.len() {
                             let second_len = second_slice.len().min(samples.len() - write_pos);
                             for i in 0..second_len {
@@ -399,10 +379,8 @@ impl AudioRecorder {
                 hound::WavWriter::new(&mut cursor, spec).map_err(|e| AudioError::WavEncodingFailed(e.to_string()))?;
 
             for sample in samples {
-                // Safe: Intentional conversion from f32 audio sample [-1.0, 1.0] to 16-bit
-                // integer
-                #[allow(clippy::cast_possible_truncation)]
-                let amplitude = (sample * f32::from(i16::MAX)) as i16;
+                // Proper conversion from f32 audio sample [-1.0, 1.0] to int16 with clamping
+                let amplitude = (sample.clamp(-1.0, 1.0) * 32767.0).round().clamp(-32768.0, 32767.0) as i16;
                 writer
                     .write_sample(amplitude)
                     .map_err(|e| AudioError::WavEncodingFailed(e.to_string()))?;
@@ -436,10 +414,8 @@ impl AudioRecorder {
             hound::WavWriter::create(path, spec).map_err(|e| AudioError::WavEncodingFailed(e.to_string()))?;
 
         for sample in samples {
-            // Safe: Intentional conversion from f32 audio sample [-1.0, 1.0] to 16-bit
-            // integer
-            #[allow(clippy::cast_possible_truncation)]
-            let amplitude = (sample * f32::from(i16::MAX)) as i16;
+            // Proper conversion from f32 audio sample [-1.0, 1.0] to int16 with clamping
+            let amplitude = (sample.clamp(-1.0, 1.0) * 32767.0).round().clamp(-32768.0, 32767.0) as i16;
             writer
                 .write_sample(amplitude)
                 .map_err(|e| AudioError::WavEncodingFailed(e.to_string()))?;

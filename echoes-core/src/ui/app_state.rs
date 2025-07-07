@@ -218,7 +218,7 @@ impl KeyboardEventCommand for RecordingKeyReleasedCommand {
             let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
 
             // Process recording with VAD
-            match app_state.audio_recorder.stop_recording_with_vad() {
+            match app_state.audio_recorder.stop_recording() {
                 Ok((raw_audio, segments)) => {
                     // Save raw recording
                     let filename = format!("recording_{timestamp}_raw.wav");
